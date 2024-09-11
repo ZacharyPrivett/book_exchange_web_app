@@ -14,14 +14,13 @@ User Stories:
   The user should be able to message other users
 
 
-
-1. Programiming Languages:
+Programiming Languages:
 
   Frontend: TypeScript
 
   Backend: C#
 
-2. Frameworks and Libraries:
+Frameworks and Libraries:
 
    Frontend: React/Next.js
 
@@ -29,29 +28,29 @@ User Stories:
 
    API: REST ASP.NET
 
-3. Database:
+Database:
 
    CosmosDB (Azure), SQLite for local db during development / Possibly look into SQL server
 
-4. Platform:
+Platform:
 
   Azure - Web Apps, Cosmos DB
 
-5. Version Control & CI/CD:
+Version Control & CI/CD:
 
    Git - for version control
 
    CI/CD - Github actions
    
-6. Development Environment:
+Development Environment:
 
    VS Code
 
-7. Authentication/Authorization:
+Authentication/Authorization:
 
    OAuth 2.0 - Google
 
-8. Testing:
+Testing:
 
    Unit Testing: xUnit
 
