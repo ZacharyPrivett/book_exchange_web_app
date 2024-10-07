@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "t/gHlXapmlK05ePiz9ARdAaZACBh0Hl8E1akm9NNSCA=",
+  "Source": "BookExchange.Api",
+  "BasePath": "_content/BookExchange.Api",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
