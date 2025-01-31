@@ -24,3 +24,9 @@ C:\Users\zpriv\Documents\dotNetProjects\CharlotteBookExchange\book_exchange_web_
 C:\Users\zpriv\Documents\dotNetProjects\CharlotteBookExchange\book_exchange_web_app\backend\BookExchange.Api\obj\Debug\net8.0\BookExchange.Api.pdb
 C:\Users\zpriv\Documents\dotNetProjects\CharlotteBookExchange\book_exchange_web_app\backend\BookExchange.Api\obj\Debug\net8.0\BookExchange.Api.genruntimeconfig.cache
 C:\Users\zpriv\Documents\dotNetProjects\CharlotteBookExchange\book_exchange_web_app\backend\BookExchange.Api\obj\Debug\net8.0\ref\BookExchange.Api.dll
+C:\Users\zpriv\Documents\dotNetProjects\CharlotteBookExchange\book_exchange_web_app\backend\BookExchange.Api\bin\Debug\net8.0\Microsoft.OpenApi.dll
+C:\Users\zpriv\Documents\dotNetProjects\CharlotteBookExchange\book_exchange_web_app\backend\BookExchange.Api\bin\Debug\net8.0\MinimalApis.Extensions.dll
+C:\Users\zpriv\Documents\dotNetProjects\CharlotteBookExchange\book_exchange_web_app\backend\BookExchange.Api\bin\Debug\net8.0\MiniValidation.dll
+C:\Users\zpriv\Documents\dotNetProjects\CharlotteBookExchange\book_exchange_web_app\backend\BookExchange.Api\obj\Debug\net8.0\BookExchange.Api.csproj.AssemblyReference.cache
+C:\Users\zpriv\Documents\dotNetProjects\CharlotteBookExchange\book_exchange_web_app\backend\BookExchange.Api\obj\Debug\net8.0\BookExchange.Api.MvcApplicationPartsAssemblyInfo.cs
+C:\Users\zpriv\Documents\dotNetProjects\CharlotteBookExchange\book_exchange_web_app\backend\BookExchange.Api\obj\Debug\net8.0\BookExch.C58B7FE2.Up2Date

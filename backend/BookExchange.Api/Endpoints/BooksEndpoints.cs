@@ -39,13 +39,15 @@ public static class BooksEndpoints
         )
     ];
 
-    public static WebApplication MapBooksEndpoints(this WebApplication app) 
+    public static RouteGroupBuilder MapBooksEndpoints(this WebApplication app) 
     {
+        var group = app.MapGroup("books").WithParameterValidation();  
+
         // GET /books
-        app.MapGet("books", () => books);
+        group.MapGet("/", () => books);
 
         // GET /books/1
-        app.MapGet("books/{id}", (int id) =>
+        group.MapGet("/{id}", (int id) =>
         {
             BookDto? book = books.Find(book => book.Id == id);
 
@@ -54,7 +56,7 @@ public static class BooksEndpoints
         .WithName(GetBookEndpointName);
 
         // POST /books
-        app.MapPost("books", (CreateBookDto newBook) =>
+        group.MapPost("/", (CreateBookDto newBook) =>
         {
             BookDto book = new
             (
@@ -73,7 +75,7 @@ public static class BooksEndpoints
         });
 
         // PUT /books
-        app.MapPut("books/{id}", (int id, UpdateBookDto updateBook) => 
+        group.MapPut("/{id}", (int id, UpdateBookDto updateBook) => 
         {
             var index = books.FindIndex(book => book.Id == id);
 
@@ -97,13 +99,13 @@ public static class BooksEndpoints
         });
 
         // DELETE /book/1
-        app.MapDelete("books/{id}", (int id) => 
+        group.MapDelete("/{id}", (int id) => 
         {
             books.RemoveAll(book => book.Id == id);
 
             return Results.NoContent();
         });
 
-        return app;
+        return group;
     }
 }
