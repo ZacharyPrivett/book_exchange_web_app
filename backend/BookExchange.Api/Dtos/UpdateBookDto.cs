@@ -1,12 +1,14 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace BookExchange.Api.Dtos;
 
 public record class UpdateBookDto
 (
-    string Title, 
-    string Author, 
-    string Genre, 
-    string ISBN, 
-    string Condition, 
-    string Description,
-    int Length
+    [Required][StringLength(50)] string Title, 
+    [Required][StringLength(50)] string Author, 
+    [Required][StringLength(50)] string Genre, 
+    [Required] string ISBN, 
+    [Required] string Condition, 
+    [Required] string Description,
+    [Required] int Length
 );
