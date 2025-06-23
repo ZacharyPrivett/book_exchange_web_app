@@ -14,13 +14,13 @@ POST http://localhost:5277/books
 Content-Type: application/json
 
   {
-    "Title": "Words of Radience", 
-    "Author": "Brandon Sanderson", 
-    "Genre": "Epic Fantasy", 
+    "title": "Words of Radience", 
+    "author": "Brandon Sanderson", 
+    "genreId": 1, 
     "ISBN": "735-2-465-19252-2", 
-    "Condition": "Good", 
-    "Description": "Book 2 of the Stormlight Archives",
-    "Length": 1220
+    "conditionId": 3, 
+    "description": "Book 2 of the Stormlight Archives",
+    "length": 1220
   }
 
 ###
