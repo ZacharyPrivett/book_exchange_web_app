@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using BookExchange.Api.Entities;
 
 namespace BookExchange.Api.Dtos;
 

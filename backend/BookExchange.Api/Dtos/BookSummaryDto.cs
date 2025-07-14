@@ -1,6 +1,6 @@
 namespace BookExchange.Api.Dtos;
 
-public record class BookDto
+public record class BookSummaryDto
 (
     int Id, 
     string Title, 

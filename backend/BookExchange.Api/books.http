@@ -6,7 +6,7 @@ GET http://localhost:5277/
 
 ###
 
-GET http://localhost:5277/books/1
+GET http://localhost:5277/books/3
 
 ###
 
@@ -31,9 +31,9 @@ Content-Type: application/json
   {
     "title": "Without Remorse",
     "author": "Tom Clancy",
-    "genre": "Mility Thriller",
+    "genreId": 4,
     "isbn": "970-0-425-14332-2",
-    "condition": "New",
+    "conditionId": 1,
     "description": "Military/Spy thriller. Action",
     "length": 780
   }

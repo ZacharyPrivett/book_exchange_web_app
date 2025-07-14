@@ -6,9 +6,9 @@ public record class UpdateBookDto
 (
     [Required][StringLength(50)] string Title, 
     [Required][StringLength(50)] string Author, 
-    [Required][StringLength(50)] string Genre, 
+    int GenreId, 
     [Required] string ISBN, 
-    [Required] string Condition, 
+    int ConditionId, 
     [Required] string Description,
     [Required] int Length
 );

@@ -2,6 +2,7 @@ using BookExchange.Api.Data;
 using BookExchange.Api.Dtos;
 using BookExchange.Api.Entities;
 using BookExchange.Api.Mapping;
+using Microsoft.EntityFrameworkCore;
 
 namespace BookExchange.Api.Endpoints;
 
@@ -9,7 +10,7 @@ public static class BooksEndpoints
 {
     const string GetBookEndpointName = "GetBook";
 
-    private static readonly List<BookDto> books = [
+    private static readonly List<BookSummaryDto> books = [
         new (
             1, 
             "Without Remorse", 
@@ -47,14 +48,20 @@ public static class BooksEndpoints
         var group = app.MapGroup("books").WithParameterValidation();  
 
         // GET /books
-        group.MapGet("/", () => books);
+        group.MapGet("/", (BookExchangeContext dbContext) =>
+            dbContext.Books
+                    .Include(book => book.Genre)
+                    .Include(book => book.Condition)
+                    .Select(book => book.ToBookSummaryDto())
+                    .AsNoTracking());
 
         // GET /books/1
-        group.MapGet("/{id}", (int id) =>
+        group.MapGet("/{id}", (int id, BookExchangeContext dbContext) =>
         {
-            BookDto? book = books.Find(book => book.Id == id);
+            Book? book = dbContext.Books.Find(id);
 
-            return book is null ? Results.NotFound() : Results.Ok(book);
+            return book is null ? Results.NotFound() :
+                Results.Ok(book.ToBookDetailsDto());
         })
         .WithName(GetBookEndpointName);
 
@@ -62,57 +69,37 @@ public static class BooksEndpoints
         group.MapPost("/", (CreateBookDto newBook, BookExchangeContext dbContext) =>
         {
             Book book = newBook.ToEntity();
-            book.Genre = dbContext.Genres.Find(newBook.GenreId);
-            book.Condition = dbContext.Condition.Find(newBook.ConditionId);
 
             dbContext.Books.Add(book);
             dbContext.SaveChanges();
 
-            BookDto bookDto = new(
-                book.Id,
-                book.Title,
-                book.Author,
-                book.Genre!.Name,
-                book.ISBN,
-                book.Condition!.Name,
-                book.Description,
-                book.Length
-            );
-
             return Results.CreatedAtRoute(
                 GetBookEndpointName,
                 new { id = book.Id },
-                book.ToDto());
+                book.ToBookDetailsDto());
         });
 
         // PUT /books
-        group.MapPut("/{id}", (int id, UpdateBookDto updateBook) => 
+        group.MapPut("/{id}", (int id, UpdateBookDto updatedBook, BookExchangeContext dbContext) => 
         {
-            var index = books.FindIndex(book => book.Id == id);
+            var existingBook = dbContext.Books.Find(id);
 
-            if (index == -1)
+            if (existingBook is null)
             {
                 return Results.NotFound();
             }
 
-            books[index] = new BookDto 
-            (
-                id,
-                updateBook.Author,
-                updateBook.Title,
-                updateBook.Genre,
-                updateBook.ISBN,
-                updateBook.Condition,
-                updateBook.Description,
-                updateBook.Length
-            );
+            dbContext.Entry(existingBook).CurrentValues.SetValues(updatedBook.ToEntity(id));
+
+            dbContext.SaveChanges();
+
             return Results.NoContent();
         });
 
         // DELETE /book/1
-        group.MapDelete("/{id}", (int id) => 
+        group.MapDelete("/{id}", (int id, BookExchangeContext dbContext) => 
         {
-            books.RemoveAll(book => book.Id == id);
+            dbContext.Books.Where(book => book.Id == id).ExecuteDelete();
 
             return Results.NoContent();
         });
