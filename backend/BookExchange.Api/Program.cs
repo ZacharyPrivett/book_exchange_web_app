@@ -10,6 +10,7 @@ var app = builder.Build();
 
 app.MapBooksEndpoints();
 app.MapGenresEndpoints();
+app.MapConditionsEndpoints();
 
 await app.MigrateDbAsync();
 
