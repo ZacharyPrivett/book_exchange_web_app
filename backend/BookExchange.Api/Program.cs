@@ -9,7 +9,8 @@ builder.Services.AddSqlite<BookExchangeContext>(connString);
 var app = builder.Build();
 
 app.MapBooksEndpoints();
+app.MapGenresEndpoints();
 
-app.MigrateDb();
+await app.MigrateDbAsync();
 
 app.Run();
