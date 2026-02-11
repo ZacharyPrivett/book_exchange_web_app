@@ -1,4 +1,3 @@
-using System;
 
 namespace BookExchange.Api.Entities;
 
