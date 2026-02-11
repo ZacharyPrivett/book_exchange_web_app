@@ -12,4 +12,3 @@ public record class CreateBookDto
     [Required] string Description,
     [Required] int Length
 );
-

@@ -1,7 +1,8 @@
+using System;
 
-namespace BookExchange.Api.Entities;
+namespace BookExchange.Api.User.UserEntities;
 
-public class Genre
+public class Provider
 {
     public int Id { get; set; }
     public required string Name { get; set; }

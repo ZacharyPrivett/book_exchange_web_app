@@ -16,7 +16,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="User\UserDtos\" />
     <Folder Include="User\UserEndpoints\" />
     <Folder Include="User\UserMapping\" />
   </ItemGroup>
