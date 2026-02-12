@@ -14,9 +14,4 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.1" />
     <PackageReference Include="MinimalApis.Extensions" Version="0.11.0" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Users\UserEndpoints\" />
-  </ItemGroup>
-
 </Project>
