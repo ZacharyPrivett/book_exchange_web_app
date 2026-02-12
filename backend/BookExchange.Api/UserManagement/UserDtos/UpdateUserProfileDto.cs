@@ -1,8 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace BookExchange.Api.User.UserDtos;
+namespace BookExchange.Api.UserManagement.UserDtos;
 
-public record class UpdateUserProfile
+public record class UpdateUserProfileDto
 (
     int UserId,
     [Required][StringLength(50)] string FirstName,

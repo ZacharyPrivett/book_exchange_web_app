@@ -1,7 +1,7 @@
 
-namespace BookExchange.Api.User.UserEntities;
+namespace BookExchange.Api.UserManagement.UserEntities;
 
-public class AuthIdentities
+public class AuthIdentity
 {
     public int AuthId { get; set; }
     public int UserId { get; set; }  
