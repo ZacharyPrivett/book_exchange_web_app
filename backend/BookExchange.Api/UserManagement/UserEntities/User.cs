@@ -1,6 +1,6 @@
 using System;
 
-namespace BookExchange.Api.User.UserEntities;
+namespace BookExchange.Api.UserManagement.UserEntities;
 
 public class User
 {
@@ -9,5 +9,5 @@ public class User
     public bool IsActive { get; set; } = true;
     public DateTime DeletedAt { get; set; }
     public UserProfile? UserProfile { get; set; }
-    public ICollection<AuthIdentities> AuthIdentities { get; set; } = new List<AuthIdentities>();
+    public ICollection<AuthIdentity> AuthIdentities { get; set; } = new List<AuthIdentity>();
 }

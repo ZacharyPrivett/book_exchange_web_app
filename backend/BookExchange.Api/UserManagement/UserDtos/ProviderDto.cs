@@ -1,3 +1,3 @@
-namespace BookExchange.Api.User.UserDtos;
+namespace BookExchange.Api.UserManagement.UserDtos;
 
 public record class ProviderDto(int Id, string Name);

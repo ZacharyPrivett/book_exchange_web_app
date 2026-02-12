@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace BookExchange.Api.User.UserEntities;
+namespace BookExchange.Api.UserManagement.UserEntities;
 
 public class UserProfile
 {
