@@ -15,13 +15,13 @@ public static class UserEndpoint
 
     const string GetUserEndpointName = "GetUser";
 
-    public static UserEndpoint MapUserEndpoints(this WebApplication app)
+    public static RouteGroupBuilder MapUserEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("users").WithParameterValidation();
+        var userGroup = app.MapGroup("users").WithParameterValidation();
 
-        group.MapGet("/")
+        userGroup.MapGet("/user", async ())
 
-        return group;
+        return userGroup;
     }
 
 }
