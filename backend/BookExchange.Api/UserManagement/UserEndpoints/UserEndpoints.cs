@@ -19,7 +19,6 @@ public static class UserEndpoint
     {
         var userGroup = app.MapGroup("users").WithParameterValidation();
 
-        userGroup.MapGet("/user", async ())
 
         return userGroup;
     }
