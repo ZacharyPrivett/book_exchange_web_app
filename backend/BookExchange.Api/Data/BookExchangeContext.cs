@@ -1,18 +1,33 @@
 using System;
+using BookExchange.Api.Auth.Entities;
 using BookExchange.Api.Entities;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace BookExchange.Api.Data;
 
-public class BookExchangeContext(DbContextOptions<BookExchangeContext> options)
-    : DbContext(options)
+public class BookExchangeContext : IdentityDbContext<ApplicationUser>
 {
+    public BookExchangeContext(DbContextOptions<BookExchangeContext> options)
+        : base(options) {}
+
+    // Book DbSets
     public DbSet<Book> Books => Set<Book>();
     public DbSet<Genre> Genres => Set<Genre>();
     public DbSet<Condition> Condition => Set<Condition>();
 
+    // Auth DbSets
+    public DbSet<RefreshToken> RefreshToken => Set<RefreshToken>();
+
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
+    {   
+        // Configure Identity tables
+        base.OnModelCreating(modelBuilder);
+
+        // Genre seed data
+        // ToDo: Update once book api is added
         modelBuilder.Entity<Genre>().HasData(
             new { Id = 1, Name = "Fantasy" },
             new { Id = 2, Name = "Science Fiction" },
@@ -21,12 +36,34 @@ public class BookExchangeContext(DbContextOptions<BookExchangeContext> options)
             new { Id = 5, Name = "Military Thriller" }
         );
 
+        // Book condition seed data
         modelBuilder.Entity<Condition>().HasData(
             new { Id = 1, Name = "New" },
             new { Id = 2, Name = "Like New" },
             new { Id = 3, Name = "Good" },
             new { Id = 4, Name = "Fair" },
             new { Id = 5, Name = "Worn" }
+        );
+
+        // Configure RefreshToken
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasIndex(e => e.Token).IsUnique();
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.RefreshTokens)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);    
+        });
+
+        // Identiy roles seed data
+        var adminRoleId = "1";
+        var userRoleId = "2";
+        var moderatorRoleId = "3";
+
+        modelBuilder.Entity<IdentityRole>().HasData(
+            new IdentityRole { Id = adminRoleId, Name = "Admin", NormalizedName = "ADMIN" },
+            new IdentityRole { Id = userRoleId, Name = "User", NormalizedName = "USER" },
+            new IdentityRole { Id = moderatorRoleId, Name = "Moderator", NormalizedName = "MODERATOR" }
         );
     }
 }
