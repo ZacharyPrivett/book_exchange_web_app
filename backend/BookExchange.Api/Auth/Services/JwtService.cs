@@ -26,9 +26,7 @@ public class JwtService : IJwtService
         {
             new(ClaimTypes.NameIdentifier, user.Id),
             new(ClaimTypes.Email, user.Email ?? ""),
-            new(ClaimTypes.Name, user.UserName ?? ""),
-            new("FirstName", user.FirstName),
-            new("LastName", user.LastName)
+            new(ClaimTypes.Name, user.UserName ?? "")
         };
     
     // Add role claims
@@ -37,8 +35,8 @@ public class JwtService : IJwtService
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
         
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
-            _configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured")));
+        var secretKey = _configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
