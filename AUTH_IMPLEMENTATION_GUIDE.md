@@ -34,7 +34,7 @@
 ### Current State
 - Custom `User`, `AuthIdentity`, `Provider` tables (will be replaced)
 - Basic JWT Bearer authentication configured
-- SQLite database
+- SQL Server LocalDB (easy migration path to SQL Server for production)
 
 ### Target Architecture
 ```
@@ -80,6 +80,7 @@ Open terminal in your project directory and run:
 
 ```bash
 dotnet add package Microsoft.AspNetCore.Identity.EntityFrameworkCore --version 8.0.24
+dotnet add package Microsoft.EntityFrameworkCore.SqlServer --version 8.0.24
 dotnet add package System.IdentityModel.Tokens.Jwt --version 7.3.1
 dotnet add package Microsoft.AspNetCore.Authentication.Google --version 8.0.24
 dotnet add package Microsoft.AspNetCore.Authentication.MicrosoftAccount --version 8.0.24
@@ -94,18 +95,24 @@ dotnet add package Microsoft.AspNetCore.Authentication.MicrosoftAccount --versio
    - Contains `RoleManager<T>` for role management
    - **Why we need it:** Core framework for user management with security best practices
 
-2. **System.IdentityModel.Tokens.Jwt**
+2. **Microsoft.EntityFrameworkCore.SqlServer**
+   - SQL Server database provider for Entity Framework Core
+   - Enables `UseSqlServer()` in DbContext configuration
+   - Supports SQL Server LocalDB (development) and SQL Server (production)
+   - **Why we need it:** To connect to SQL Server LocalDB for development with easy migration to Azure SQL Database
+
+3. **System.IdentityModel.Tokens.Jwt**
    - Provides `JwtSecurityTokenHandler` for creating and validating JWT tokens
    - Contains `JwtSecurityToken` class for token representation
    - Supports claims-based authentication
    - **Why we need it:** To generate and validate JWT access tokens for API authentication
 
-3. **Microsoft.AspNetCore.Authentication.Google**
+4. **Microsoft.AspNetCore.Authentication.Google**
    - OAuth 2.0 middleware for Google authentication
    - Handles the OAuth redirect flow automatically
    - **Why we need it:** Lets users sign in with their Google account
 
-4. **Microsoft.AspNetCore.Authentication.MicrosoftAccount**
+5. **Microsoft.AspNetCore.Authentication.MicrosoftAccount**
    - OAuth 2.0 middleware for Microsoft authentication
    - Supports personal Microsoft accounts and Azure AD
    - **Why we need it:** Lets users sign in with their Microsoft/Outlook account
@@ -117,7 +124,7 @@ Update `appsettings.json`:
 ```json
 {
   "ConnectionStrings": {
-    "BookExchange": "Data Source=BookExchange.db"
+    "BookExchange": "Server=(localdb)\\mssqllocaldb;Database=BookExchange;Trusted_Connection=true;"
   },
   "Jwt": {
     "SecretKey": "THIS-IS-A-SUPER-SECRET-KEY-CHANGE-THIS-IN-PRODUCTION-MIN-32-CHARS",
@@ -235,6 +242,13 @@ Update `appsettings.Development.json`:
 
 **🎯 Goal of This Phase:**
 Migrate from your custom `User`, `AuthIdentity`, `Provider` tables to ASP.NET Core Identity's standardized tables. Identity creates tables like `AspNetUsers`, `AspNetRoles`, `AspNetUserRoles`, etc., which provide a complete user management system.
+
+**📊 Database Strategy:**
+This project uses **SQL Server LocalDB** for local development with an easy migration path to **SQL Server** for production:
+- **LocalDB Benefits:** File-based SQL Server instance, no installation required, full SQL Server compatibility
+- **Migration Path:** Change connection string to Azure SQL Database or SQL Server when deploying
+- **EF Core Compatibility:** Same migrations work for both LocalDB and SQL Server (same provider)
+- **Why not SQLite?** SQL Server LocalDB provides exact feature parity with production SQL Server
 
 **Why Migrate?**
 - Your custom tables require manual implementation of password hashing, lockout, email confirmation
@@ -558,7 +572,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Database
 var connString = builder.Configuration.GetConnectionString("BookExchange");
 builder.Services.AddDbContext<BookExchangeContext>(options =>
-    options.UseSqlite(connString));
+    options.UseSqlServer(connString));
 
 // Identity
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -1033,6 +1047,9 @@ public class JwtService : IJwtService
         _context = context;
     }
 
+    /// <summary>
+    /// Generates a short-lived JWT access token (typically 15-60 minutes)
+    /// </summary>
     public string GenerateAccessToken(ApplicationUser user, IList<string> roles)
     {
         var claims = new List<Claim>
@@ -1044,7 +1061,7 @@ public class JwtService : IJwtService
             new("LastName", user.LastName)
         };
 
-        // Add role claims
+        // Add role claims for authorization checks
         foreach (var role in roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
@@ -1068,6 +1085,9 @@ public class JwtService : IJwtService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
+    /// <summary>
+    /// Generates a cryptographically secure random refresh token (256-bit)
+    /// </summary>
     public string GenerateRefreshToken()
     {
         var randomNumber = new byte[64];
@@ -1076,13 +1096,17 @@ public class JwtService : IJwtService
         return Convert.ToBase64String(randomNumber);
     }
 
+    /// <summary>
+    /// Extracts claims from an expired JWT token (used for refresh token flow)
+    /// Does not validate token expiration
+    /// </summary>
     public ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
     {
         var tokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
-            ValidateLifetime = false, // Don't validate lifetime here
+            ValidateLifetime = false, // Don't validate lifetime here (token is expired)
             ValidateIssuerSigningKey = true,
             ValidIssuer = _configuration["Jwt:Issuer"],
             ValidAudience = _configuration["Jwt:Audience"],
@@ -1095,6 +1119,7 @@ public class JwtService : IJwtService
         {
             var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var securityToken);
 
+            // Ensure it's a valid JWT with correct algorithm
             if (securityToken is not JwtSecurityToken jwtSecurityToken ||
                 !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
             {
@@ -1109,6 +1134,9 @@ public class JwtService : IJwtService
         }
     }
 
+    /// <summary>
+    /// Creates and stores a refresh token in the database
+    /// </summary>
     public async Task<RefreshToken> CreateRefreshTokenAsync(string userId)
     {
         var expiryDays = int.Parse(_configuration["Jwt:RefreshTokenExpiryInDays"] ?? "7");
@@ -1118,7 +1146,8 @@ public class JwtService : IJwtService
             Token = GenerateRefreshToken(),
             UserId = userId,
             ExpiresAt = DateTime.UtcNow.AddDays(expiryDays),
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            IsRevoked = false
         };
 
         _context.RefreshTokens.Add(refreshToken);
@@ -1127,12 +1156,16 @@ public class JwtService : IJwtService
         return refreshToken;
     }
 
+    /// <summary>
+    /// Retrieves a refresh token and validates it hasn't expired or been revoked
+    /// </summary>
     public async Task<RefreshToken?> GetValidRefreshTokenAsync(string token)
     {
         var refreshToken = await _context.RefreshTokens
             .Include(rt => rt.User)
             .FirstOrDefaultAsync(rt => rt.Token == token);
 
+        // Token is invalid if: not found, already revoked, or expired
         if (refreshToken == null || refreshToken.IsRevoked || refreshToken.ExpiresAt < DateTime.UtcNow)
         {
             return null;
@@ -1141,6 +1174,9 @@ public class JwtService : IJwtService
         return refreshToken;
     }
 
+    /// <summary>
+    /// Revokes a refresh token (marks it as no longer usable)
+    /// </summary>
     public async Task RevokeRefreshTokenAsync(string token)
     {
         var refreshToken = await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.Token == token);
@@ -1148,6 +1184,10 @@ public class JwtService : IJwtService
         {
             refreshToken.IsRevoked = true;
             refreshToken.RevokedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
+    }
+}
             await _context.SaveChangesAsync();
         }
     }
@@ -2195,7 +2235,7 @@ You now have a fully functional authentication system with:
 If you encounter any issues, check:
 1. Application logs in console
 2. Browser developer console (for frontend issues)
-3. Database state with DB Browser for SQLite
+3. Database state with SQL Server Management Studio (SSMS) or Azure Data Studio
 4. Network tab in browser dev tools (check API responses)
 
 Good luck! 🚀
