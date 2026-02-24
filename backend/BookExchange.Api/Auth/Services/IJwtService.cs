@@ -9,6 +9,6 @@ public interface IJwtService
     string GenerateRefreshToken();
     ClaimsPrincipal? GetPrincipalFromExpiredToken(string token);
     Task<RefreshToken> CreateRefreshTokenAsync(string token);
-    Task<RefreshToken>? GetValidRefreshTokenAsync(string token);
+    Task<RefreshToken?> GetValidRefreshTokenAsync(string token);
     Task RevokeRefreshTokenAsync(string token);
 }
