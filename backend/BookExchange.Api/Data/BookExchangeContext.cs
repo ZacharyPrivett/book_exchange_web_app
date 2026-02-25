@@ -19,6 +19,7 @@ public class BookExchangeContext : IdentityDbContext<ApplicationUser>
 
     // Auth DbSets
     public DbSet<RefreshToken> RefreshToken => Set<RefreshToken>();
+    public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -44,6 +45,16 @@ public class BookExchangeContext : IdentityDbContext<ApplicationUser>
             new { Id = 4, Name = "Fair" },
             new { Id = 5, Name = "Worn" }
         );
+
+        // Configure UserProfile
+        modelBuilder.Entity<UserProfile>(entity =>
+        {
+            entity.HasIndex(e => e.DisplayName).IsUnique();
+            entity.HasOne(e => e.User)
+                  .WithOne(u => u.Profile)
+                  .HasForeignKey<UserProfile>(e => e.User.Id)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
 
         // Configure RefreshToken
         modelBuilder.Entity<RefreshToken>(entity =>
