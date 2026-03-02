@@ -8,6 +8,6 @@ public record class RegisterDto(
     [Required] string FirstName,
     [Required] string LastName,
     [Required] string DisplayName,
-    string? PhoneNumber,
-    DateOnly? DateOnly 
+    [Required] string Age,
+    string? PhoneNumber
 );

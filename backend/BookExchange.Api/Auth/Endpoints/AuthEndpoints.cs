@@ -1,11 +1,10 @@
-using System.ComponentModel;
 using BookExchange.Api.Auth.Dtos;
 using BookExchange.Api.Auth.Entities;
 using BookExchange.Api.Auth.Services;
-using BookExchange.Api.UserManagement.UserEntities;
+using BookExchange.Api.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration.UserSecrets;
+using Microsoft.EntityFrameworkCore;
 
 
 namespace BookExchange.Api.Auth.Endpoints;
@@ -30,11 +29,10 @@ public static class AuthEndpoints
         RegisterDto dto,
         UserManager<ApplicationUser> userManager,
         IJwtService jwtService,
-        //IEmailService emailService,  // Still need to build EmailService
+        IEmailService emailService,  
         IConfiguration configuration,
         BookExchangeContext context)
     {
-
         // Check if user already exist
         var existingUser = await userManager.FindByEmailAsync(dto.Email);
 
@@ -44,7 +42,7 @@ public static class AuthEndpoints
         }
 
         // Check if DisplayName is available
-        var existingDisplayName = await context.UserProfiles.AnyAsyc(p => p.DisplayName == dto.DisplayName);
+        var existingDisplayName = await context.UserProfiles.AnyAsync(p => p.DisplayName == dto.DisplayName);
 
         if (existingDisplayName)
         {
@@ -74,8 +72,17 @@ public static class AuthEndpoints
             LastName = dto.LastName,
             DisplayName = dto.DisplayName,
             PhoneNumber = dto.PhoneNumber,
-
+            Age = dto.Age,
+            CreatedAt = DateTime.UtcNow
         };
+
+        context.UserProfiles.Add(profile);
+        await context.SaveChangesAsync();
+
+        // Assign default "User" role
+        await userManager.AddToRoleAsync(user, "User");
+
+        // Generate email confirmation token
 
     }
 
