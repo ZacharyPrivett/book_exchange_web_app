@@ -5,17 +5,18 @@
 
 ## 📋 Table of Contents
 1. [Overview](#overview)
-2. [Phase 1: Setup & Dependencies](#phase-1-setup--dependencies)
-3. [Phase 2: Entity & Database Migration](#phase-2-entity--database-migration)
-4. [Phase 3: JWT Configuration](#phase-3-jwt-configuration)
-5. [Phase 4: Registration Endpoint](#phase-4-registration-endpoint)
-6. [Phase 5: Login Endpoint](#phase-5-login-endpoint)
-7. [Phase 6: Refresh Token System](#phase-6-refresh-token-system)
-8. [Phase 7: Email Verification](#phase-7-email-verification)
-9. [Phase 8: Password Reset Flow](#phase-8-password-reset-flow)
-10. [Phase 9: OAuth Providers (Google/Microsoft)](#phase-9-oauth-providers-googlemicrosoft)
-11. [Phase 10: Role-Based Authorization](#phase-10-role-based-authorization)
-12. [Phase 11: Testing](#phase-11-testing)
+2. [Architecture Decision: ApplicationUser + UserProfile](#architecture-decision-applicationuser--userprofile)
+3. [Phase 1: Setup & Dependencies](#phase-1-setup--dependencies)
+4. [Phase 2: Entity & Database Migration](#phase-2-entity--database-migration)
+5. [Phase 3: JWT Configuration](#phase-3-jwt-configuration)
+6. [Phase 4: Registration Endpoint](#phase-4-registration-endpoint)
+7. [Phase 5: Login Endpoint](#phase-5-login-endpoint)
+8. [Phase 6: Refresh Token System](#phase-6-refresh-token-system)
+9. [Phase 7: Email Verification](#phase-7-email-verification)
+10. [Phase 8: Password Reset Flow](#phase-8-password-reset-flow)
+11. [Phase 9: OAuth Providers (Google/Microsoft)](#phase-9-oauth-providers-googlemicrosoft)
+12. [Phase 10: Role-Based Authorization](#phase-10-role-based-authorization)
+13. [Phase 11: Testing](#phase-11-testing)
 
 ---
 
@@ -69,6 +70,144 @@ User Registration/Login → ASP.NET Core Identity → Generate JWT + Refresh Tok
 - **Flexibility:** Some users prefer traditional login, others want "Sign in with Google"
 - **User convenience:** OAuth eliminates password fatigue and registration friction
 - **Trust:** Users trust Google/Microsoft's security more than unknown sites
+
+---
+
+## 🏗️ Architecture Decision: ApplicationUser + UserProfile
+
+### The Two-Entity Pattern
+
+This implementation uses **two separate entities** for user management:
+
+1. **ApplicationUser** (Auth/Identity concerns)
+   - Extends `IdentityUser`
+   - Contains: `CreatedAt`, `IsActive`, `DeletedAt`
+   - Navigation to `RefreshTokens` and `Profile`
+   - Managed by ASP.NET Core Identity's `UserManager`
+
+2. **UserProfile** (User data/information)
+   - Separate entity with 1:1 relationship
+   - Contains: `FirstName`, `LastName`, `DisplayName`, `Bio`, `AvatarUrl`, `DateOfBirth`, `PhoneNumber`
+   - Managed by standard EF Core `DbContext`
+
+### Why This Separation is Critical
+
+**❌ Alternative (Single Entity Approach):**
+```csharp
+public class ApplicationUser : IdentityUser
+{
+    public string FirstName { get; set; }
+    public string LastName { get; set; }
+    public string DisplayName { get; set; }
+    public string? Bio { get; set; }
+    public string? AvatarUrl { get; set; }
+    // ... all user data mixed with auth data
+}
+```
+
+**✅ Our Approach (Separated Concerns):**
+```csharp
+// Auth only
+public class ApplicationUser : IdentityUser
+{
+    public DateTime CreatedAt { get; set; }
+    public bool IsActive { get; set; }
+    public UserProfile? Profile { get; set; }
+}
+
+// User data only
+public class UserProfile
+{
+    public string FirstName { get; set; }
+    public string LastName { get; set; }
+    public string DisplayName { get; set; }
+    public string? Bio { get; set; }
+    // ... all profile information
+}
+```
+
+### Key Benefits
+
+1. **Performance Optimization**
+   - Auth checks don't load unnecessary profile data
+   - Faster token validation queries
+   - Example: Checking if user has "Admin" role doesn't need to load their bio or avatar
+
+2. **Separation of Concerns**
+   - Authentication logic stays independent from profile logic
+   - Can modify profile structure without touching Identity tables
+   - Easier to test and maintain
+
+3. **Security**
+   - Profile updates don't trigger Identity's `SecurityStamp` changes
+   - Can implement different permission levels (anyone can view profile, only owner can edit)
+   - Auth queries are simpler and more auditable
+
+4. **Flexibility**
+   - Easy to extend profiles with complex features (badges, social connections, preferences)
+   - Can add profile versioning without affecting auth
+   - Profile data can be cached separately from auth data
+
+5. **Different Update Patterns**
+   - Auth data: Changes rarely (password, email, lockout status)
+   - Profile data: Changes frequently (bio, avatar, preferences)
+   - EF Core's change tracking works better with separated entities
+
+6. **Privacy Control**
+   - DisplayName is public (shown to other users)
+   - FirstName/LastName are private (only shown to user themselves or admins)
+   - Easy to implement "public profile" vs "private details"
+
+### Real-World Example
+
+**Checking user permissions (fast):**
+```csharp
+var user = await userManager.FindByIdAsync(userId);
+var isAdmin = await userManager.IsInRoleAsync(user, "Admin");
+// No profile data loaded ✅
+```
+
+**Loading user profile for display (separate query):**
+```csharp
+var profile = await context.UserProfiles
+    .Where(p => p.UserId == userId)
+    .FirstOrDefaultAsync();
+// Only profile data loaded when needed ✅
+```
+
+**Without separation (slower):**
+```csharp
+var user = await userManager.Users
+    .Include(u => u.Profile) // Always loads profile even if not needed ❌
+    .FirstOrDefaultAsync(u => u.Id == userId);
+```
+
+### Database Impact
+
+**Tables Created:**
+- `AspNetUsers` - ApplicationUser data (Identity framework)
+- `UserProfiles` - Profile data (custom table)
+- 1:1 relationship via foreign key `UserProfiles.UserId → AspNetUsers.Id`
+
+**Query Patterns:**
+- **Auth-only queries:** Query `AspNetUsers` directly (lightweight)
+- **Profile queries:** Query `UserProfiles` with optional join to `AspNetUsers`
+- **Full user:** Query `AspNetUsers` with `.Include(u => u.Profile)` when needed
+
+### Summary
+
+✅ **Use separate entities when:**
+- You have distinct concerns (auth vs. data)
+- Update patterns differ (rare vs. frequent)
+- Performance matters (auth checks vs. profile loads)
+- You want flexibility in extending one without affecting the other
+
+❌ **Use single entity if:**
+- Your app is very simple with minimal user data
+- You always need all user information together
+- Performance overhead of joins isn't a concern
+
+**For this project, the two-entity approach is the correct choice** because we need scalable auth, flexible profiles, and good performance.
 
 ---
 
@@ -262,20 +401,18 @@ Create `backend/BookExchange.Api/Auth/Entities/ApplicationUser.cs`:
 
 ```csharp
 using Microsoft.AspNetCore.Identity;
+using BookExchange.Api.UserManagement.UserEntities;
 
 namespace BookExchange.Api.Auth.Entities;
 
 public class ApplicationUser : IdentityUser
 {
-    public string FirstName { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
-    public string? AvatarUrl { get; set; }
-    public DateOnly? DateOfBirth { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public bool IsActive { get; set; } = true;
     public DateTime? DeletedAt { get; set; }
-    
-    // Navigation property for refresh tokens
+
+    // Navigation properties
+    public UserProfile? Profile { get; set; }
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 }
 ```
@@ -291,28 +428,113 @@ public class ApplicationUser : IdentityUser
   - `LockoutEnd`: Implements account lockout for brute force protection
   - `AccessFailedCount`: Tracks failed login attempts
 
-**Custom Properties We're Adding:**
-1. **FirstName & LastName**: User's display name
-   - **Why separate from UserName?** Username is for login (usually email), display name is for UI
-   
-2. **AvatarUrl**: Profile picture URL
-   - **Why nullable?** Not all users will upload a profile picture
-   
-3. **DateOfBirth**: User's age information
-   - **Why DateOnly?** More precise than DateTime for birthdays, doesn't include time
-   
-4. **CreatedAt**: Account creation timestamp
+**Design Decision: Separating Auth from Profile Data**
+
+⚠️ **Important Architecture Decision:**
+Notice that `ApplicationUser` is kept **minimal** and contains only auth-related fields. Personal user information (FirstName, LastName, Bio, Avatar, etc.) is stored in a separate `UserProfile` entity.
+
+**Why This Separation?**
+1. **Separation of Concerns**: Authentication logic stays separate from user profile data
+2. **Security**: Can query auth status without loading unnecessary profile data
+3. **Performance**: Lighter queries when checking permissions or authentication
+4. **Flexibility**: Easy to extend profile without modifying Identity tables
+5. **Testing**: Can mock and test auth independently from profile logic
+6. **Different Access Patterns**: Auth queries (login, token validation) differ from profile queries (display name, bio)
+
+**Custom Properties on ApplicationUser:**
+1. **CreatedAt**: Account creation timestamp
    - **Why useful?** Track when users registered, useful for analytics and debugging
    
-5. **IsActive & DeletedAt**: Soft delete pattern
+2. **IsActive & DeletedAt**: Soft delete pattern
    - **Why not hard delete?** Preserve data for audit logs, foreign key integrity
    - **When user "deletes" account:** Set `IsActive = false`, `DeletedAt = DateTime.UtcNow`
    
-6. **RefreshTokens navigation property**: One-to-many relationship
+3. **Profile navigation property**: One-to-one relationship
+   - **Why nullable?** Profile may be created after initial user registration
+   - Links to the UserProfile entity that contains all personal info
+   
+4. **RefreshTokens navigation property**: One-to-many relationship
    - **Why collection?** Users can be logged in on multiple devices (phone, laptop, tablet)
    - Each device gets its own refresh token
 
-### Step 2.2: Create RefreshToken Entity
+### Step 2.2: Create UserProfile Entity
+
+Create `backend/BookExchange.Api/Auth/Entities/UserProfile.cs`:
+
+```csharp
+namespace BookExchange.Api.Auth.Entities;
+
+public class UserProfile
+{
+    public int Id { get; set; }
+    public required string UserId { get; set; }
+    public ApplicationUser User { get; set; } = null!;
+    
+    // Personal information
+    public required string FirstName { get; set; }
+    public required string LastName { get; set; }
+    
+    // Public profile
+    public required string DisplayName { get; set; }  // Unique, visible to others (username/handle)
+    public string? Bio { get; set; }
+    public string? AvatarUrl { get; set; }
+    public DateOnly? DateOfBirth { get; set; }
+    public string? PhoneNumber { get; set; }
+    
+    // Timestamps
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
+}
+```
+
+**📘 UserProfile Explanation:**
+
+**Why a Separate Profile Entity?**
+- Keeps `ApplicationUser` focused on authentication concerns only
+- Profile data can be updated frequently without touching auth tables
+- Can add complex profile features (preferences, settings, badges) without affecting Identity
+- Better database performance: auth queries don't need to load profile data
+
+**Property Breakdown:**
+
+1. **UserId (required string)**
+   - Foreign key to ApplicationUser
+   - **Why string?** IdentityUser uses string IDs (GUIDs) by default
+   
+2. **FirstName & LastName (required)**
+   - User's real name
+   - **Required** because we need at least basic identity info
+   
+3. **DisplayName (required string)**
+   - Public username/handle visible to other users
+   - **Should be unique** (configure in DbContext)
+   - **Why separate from real name?** Privacy - users may not want to show real name
+   - **Example:** Real name "John Smith", DisplayName "bookworm42"
+   
+4. **Bio (nullable string)**
+   - User's profile description/about section
+   - **Why nullable?** Not all users write bios
+   
+5. **AvatarUrl (nullable string)**
+   - Profile picture URL
+   - **Why nullable?** Not all users upload pictures
+   - **Could store:** Azure Blob Storage URL, Gravatar URL, etc.
+   
+6. **DateOfBirth (nullable DateOnly)**
+   - User's birthday
+   - **Why nullable?** Users may prefer not to share
+   - **Why DateOnly?** More precise than DateTime for birthdays (no time component)
+   
+7. **PhoneNumber (nullable string)**
+   - Contact phone number
+   - **Note:** `IdentityUser` also has PhoneNumber, but that's for 2FA
+   - This is for profile/contact purposes
+   
+8. **CreatedAt & UpdatedAt**
+   - Track when profile was created and last modified
+   - **Useful for:** Audit trails, showing "Member since" badges
+
+### Step 2.3: Create RefreshToken Entity
 
 Create `backend/BookExchange.Api/Auth/Entities/RefreshToken.cs`:
 
@@ -400,7 +622,7 @@ Unlike JWT access tokens (which are stateless), refresh tokens are stored in the
 - Limits the time window for stolen tokens to be useful
 - If an old refresh token is reused, it indicates theft (automatic revocation possible)
 
-### Step 2.3: Update BookExchangeContext
+### Step 2.4: Update BookExchangeContext
 
 Replace `Data/BookExchangeContext.cs`:
 
@@ -420,13 +642,14 @@ public class BookExchangeContext : IdentityDbContext<ApplicationUser>
     {
     }
 
-    // Existing DbSets
+    // Book DbSets
     public DbSet<Book> Books => Set<Book>();
     public DbSet<Genre> Genres => Set<Genre>();
     public DbSet<Condition> Condition => Set<Condition>();
     
-    // New DbSets for Auth
-    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    // Auth DbSets
+    public DbSet<RefreshToken> RefreshToken => Set<RefreshToken>();
+    public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -449,6 +672,16 @@ public class BookExchangeContext : IdentityDbContext<ApplicationUser>
             new { Id = 4, Name = "Fair" },
             new { Id = 5, Name = "Worn" }
         );
+
+        // Configure UserProfile
+        modelBuilder.Entity<UserProfile>(entity =>
+        {
+            entity.HasIndex(e => e.DisplayName).IsUnique(); // DisplayName must be unique
+            entity.HasOne(e => e.User)
+                  .WithOne(u => u.Profile)
+                  .HasForeignKey<UserProfile>(e => e.User.Id)  // Note: should be e.UserId
+                  .OnDelete(DeleteBehavior.Cascade); // If user deleted, delete profile too
+        });
 
         // Configure RefreshToken
         modelBuilder.Entity<RefreshToken>(entity =>
@@ -474,7 +707,35 @@ public class BookExchangeContext : IdentityDbContext<ApplicationUser>
 }
 ```
 
-**📘 DbContext Changes Explained:**
+**� Implementation Notes:**
+
+**DbSet Naming Convention:**
+- `RefreshToken` is singular (not plural `RefreshTokens`)
+- While EF Core convention suggests plural DbSet names, singular works fine
+- The important thing is consistency throughout your codebase
+- All references in JwtService use `_context.RefreshToken` (singular)
+
+**UserProfile Foreign Key:**
+⚠️ **Current Configuration:**
+```csharp
+.HasForeignKey<UserProfile>(e => e.User.Id)  // Navigation property path
+```
+
+This works but is less explicit. The more conventional approach would be:
+```csharp
+.HasForeignKey<UserProfile>(e => e.UserId)  // Direct property reference
+```
+
+Both work, but using `e.UserId` is clearer as it directly references the foreign key property on UserProfile.
+
+**Missing UserProfiles DbSet:**
+- The guide includes `UserProfiles` DbSet for querying user profiles directly
+- This is needed for loading profiles separately from ApplicationUser
+- Example: `await context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId)`
+
+---
+
+**� DbContext Changes Explained:**
 
 **Key Change: `IdentityDbContext<ApplicationUser>` instead of `DbContext`**
 
@@ -1056,9 +1317,7 @@ public class JwtService : IJwtService
         {
             new(ClaimTypes.NameIdentifier, user.Id),
             new(ClaimTypes.Email, user.Email ?? ""),
-            new(ClaimTypes.Name, user.UserName ?? ""),
-            new("FirstName", user.FirstName),
-            new("LastName", user.LastName)
+            new(ClaimTypes.Name, user.UserName ?? "")
         };
 
         // Add role claims for authorization checks
@@ -1150,7 +1409,7 @@ public class JwtService : IJwtService
             IsRevoked = false
         };
 
-        _context.RefreshTokens.Add(refreshToken);
+        _context.RefreshToken.Add(refreshToken);
         await _context.SaveChangesAsync();
 
         return refreshToken;
@@ -1161,7 +1420,7 @@ public class JwtService : IJwtService
     /// </summary>
     public async Task<RefreshToken?> GetValidRefreshTokenAsync(string token)
     {
-        var refreshToken = await _context.RefreshTokens
+        var refreshToken = await _context.RefreshToken
             .Include(rt => rt.User)
             .FirstOrDefaultAsync(rt => rt.Token == token);
 
@@ -1179,15 +1438,11 @@ public class JwtService : IJwtService
     /// </summary>
     public async Task RevokeRefreshTokenAsync(string token)
     {
-        var refreshToken = await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.Token == token);
+        var refreshToken = await _context.RefreshToken.FirstOrDefaultAsync(rt => rt.Token == token);
         if (refreshToken != null)
         {
             refreshToken.IsRevoked = true;
             refreshToken.RevokedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-        }
-    }
-}
             await _context.SaveChangesAsync();
         }
     }
@@ -1212,10 +1467,16 @@ public record RegisterDto(
     [Required][MinLength(8)] string Password,
     [Required] string FirstName,
     [Required] string LastName,
+    [Required] string DisplayName,  // Public username/handle
     string? PhoneNumber,
     DateOnly? DateOfBirth
 );
 ```
+
+**📘 RegisterDto Explanation:**
+- `DisplayName` is now **required** - this is the public username/handle
+- `DisplayName` should be unique (validated in the endpoint)
+- Separates public identity (DisplayName) from authentication identity (Email)
 
 Create `backend/BookExchange.Api/Auth/Dtos/AuthResponseDto.cs`:
 
@@ -1227,11 +1488,15 @@ public record AuthResponseDto(
     string RefreshToken,
     string UserId,
     string Email,
-    string FirstName,
-    string LastName,
+    string DisplayName,  // Changed from FirstName
     List<string> Roles
 );
 ```
+
+**📘 AuthResponseDto Changes:**
+- Returns `DisplayName` instead of FirstName/LastName for privacy
+- Client apps can show DisplayName publicly
+- FirstName/LastName kept private in UserProfile
 
 ### Step 4.2: Create Auth Endpoints
 
@@ -1267,7 +1532,8 @@ public static class AuthEndpoints
         UserManager<ApplicationUser> userManager,
         IJwtService jwtService,
         IEmailService emailService,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        BookExchangeContext context)  // Added for UserProfile creation
     {
         // Check if user already exists
         var existingUser = await userManager.FindByEmailAsync(dto.Email);
@@ -1276,15 +1542,19 @@ public static class AuthEndpoints
             return Results.BadRequest(new { message = "User with this email already exists" });
         }
 
-        // Create user
+        // Check if DisplayName is already taken
+        var existingDisplayName = await context.UserProfiles
+            .AnyAsync(p => p.DisplayName == dto.DisplayName);
+        if (existingDisplayName)
+        {
+            return Results.BadRequest(new { message = "This display name is already taken" });
+        }
+
+        // Create ApplicationUser (auth only)
         var user = new ApplicationUser
         {
             UserName = dto.Email,
             Email = dto.Email,
-            FirstName = dto.FirstName,
-            LastName = dto.LastName,
-            PhoneNumber = dto.PhoneNumber,
-            DateOfBirth = dto.DateOfBirth,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -1294,6 +1564,21 @@ public static class AuthEndpoints
         {
             return Results.BadRequest(new { errors = result.Errors.Select(e => e.Description) });
         }
+
+        // Create UserProfile (user data)
+        var profile = new UserProfile
+        {
+            UserId = user.Id,
+            FirstName = dto.FirstName,
+            LastName = dto.LastName,
+            DisplayName = dto.DisplayName,
+            PhoneNumber = dto.PhoneNumber,
+            DateOfBirth = dto.DateOfBirth,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        context.UserProfiles.Add(profile);
+        await context.SaveChangesAsync();
 
         // Assign default "User" role
         await userManager.AddToRoleAsync(user, "User");
@@ -1316,13 +1601,67 @@ public static class AuthEndpoints
             refreshToken.Token,
             user.Id,
             user.Email!,
-            user.FirstName,
-            user.LastName,
+            profile.DisplayName,
             roles.ToList()
         );
 
         return Results.Created($"/auth/user/{user.Id}", response);
     }
+}
+```
+
+**📘 Registration Implementation Explained:**
+
+**Why Two Entities (ApplicationUser + UserProfile)?**
+
+Notice how the registration creates **two separate records**:
+1. `ApplicationUser` - Created via `UserManager` (Identity framework)
+2. `UserProfile` - Created via `DbContext` (regular EF Core)
+
+**Key Benefits of This Approach:**
+
+1. **Separation of Concerns**
+   - ApplicationUser = authentication/authorization concerns only
+   - UserProfile = user data and display information
+   - Changes to profile don't touch Identity tables
+
+2. **Security & Performance**
+   - Auth queries (checking permissions, validating tokens) don't load profile data
+   - Lighter, faster queries for authentication checks
+   - Example: `userManager.FindByIdAsync()` doesn't pull FirstName, Bio, Avatar, etc.
+
+3. **Flexibility**
+   - Can extend UserProfile without modifying Identity schema
+   - Can add complex profile features (social connections, preferences) cleanly
+   - Different update patterns: auth data changes rarely, profile changes frequently
+
+4. **DisplayName Uniqueness Check**
+   - DisplayName must be unique (public username)
+   - Checked separately from email uniqueness
+   - Allows users to have unique handles like "bookworm42"
+
+5. **Privacy**
+   - Public API returns DisplayName, not FirstName/LastName
+   - Real name stays in UserProfile, only exposed when appropriate
+   - Better control over what information is public vs. private
+
+**Transaction Safety:**
+In a production system, you'd wrap both creates in a transaction:
+```csharp
+using var transaction = await context.Database.BeginTransactionAsync();
+try
+{
+    // Create user
+    await userManager.CreateAsync(user, dto.Password);
+    // Create profile
+    context.UserProfiles.Add(profile);
+    await context.SaveChangesAsync();
+    await transaction.CommitAsync();
+}
+catch
+{
+    await transaction.RollbackAsync();
+    throw;
 }
 ```
 
@@ -1362,7 +1701,8 @@ private static async Task<IResult> Login(
     LoginDto dto,
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
-    IJwtService jwtService)
+    IJwtService jwtService,
+    BookExchangeContext context)  // Added for profile loading
 {
     var user = await userManager.FindByEmailAsync(dto.Email);
     if (user == null)
@@ -1387,6 +1727,15 @@ private static async Task<IResult> Login(
         return Results.Unauthorized();
     }
 
+    // Load user profile
+    var profile = await context.UserProfiles
+        .FirstOrDefaultAsync(p => p.UserId == user.Id);
+    
+    if (profile == null)
+    {
+        return Results.Problem("User profile not found");
+    }
+
     // Generate tokens
     var roles = await userManager.GetRolesAsync(user);
     var accessToken = jwtService.GenerateAccessToken(user, roles);
@@ -1397,8 +1746,7 @@ private static async Task<IResult> Login(
         refreshToken.Token,
         user.Id,
         user.Email!,
-        user.FirstName,
-        user.LastName,
+        profile.DisplayName,
         roles.ToList()
     );
 
@@ -1440,7 +1788,8 @@ authGroup.MapPost("refresh", RefreshToken)
 private static async Task<IResult> RefreshToken(
     RefreshTokenDto dto,
     UserManager<ApplicationUser> userManager,
-    IJwtService jwtService)
+    IJwtService jwtService,
+    BookExchangeContext context)
 {
     // Validate the expired access token
     var principal = jwtService.GetPrincipalFromExpiredToken(dto.AccessToken);
@@ -1472,6 +1821,15 @@ private static async Task<IResult> RefreshToken(
     await jwtService.RevokeRefreshTokenAsync(dto.RefreshToken);
     var newRefreshToken = await jwtService.CreateRefreshTokenAsync(user.Id);
 
+    // Load user profile
+    var profile = await context.UserProfiles
+        .FirstOrDefaultAsync(p => p.UserId == user.Id);
+    
+    if (profile == null)
+    {
+        return Results.Problem("User profile not found");
+    }
+
     // Generate new access token
     var roles = await userManager.GetRolesAsync(user);
     var newAccessToken = jwtService.GenerateAccessToken(user, roles);
@@ -1481,8 +1839,7 @@ private static async Task<IResult> RefreshToken(
         newRefreshToken.Token,
         user.Id,
         user.Email!,
-        user.FirstName,
-        user.LastName,
+        profile.DisplayName,
         roles.ToList()
     );
 
@@ -1772,7 +2129,8 @@ private static async Task<IResult> ExternalLoginCallback(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
     IJwtService jwtService,
-    IConfiguration configuration)
+    IConfiguration configuration,
+    BookExchangeContext context)
 {
     var info = await signInManager.GetExternalLoginInfoAsync();
     if (info == null)
@@ -1804,13 +2162,11 @@ private static async Task<IResult> ExternalLoginCallback(
 
         if (user == null)
         {
-            // Create new user
+            // Create new user (auth only)
             user = new ApplicationUser
             {
                 UserName = email,
                 Email = email,
-                FirstName = info.Principal.FindFirstValue(System.Security.Claims.ClaimTypes.GivenName) ?? "",
-                LastName = info.Principal.FindFirstValue(System.Security.Claims.ClaimTypes.Surname) ?? "",
                 EmailConfirmed = true, // Email verified by external provider
                 CreatedAt = DateTime.UtcNow
             };
@@ -1820,6 +2176,23 @@ private static async Task<IResult> ExternalLoginCallback(
             {
                 return Results.Redirect($"{configuration["AppUrls:FrontendUrl"]}/auth/login?error=user_creation_failed");
             }
+
+            // Create user profile
+            var givenName = info.Principal.FindFirstValue(System.Security.Claims.ClaimTypes.GivenName) ?? "User";
+            var surname = info.Principal.FindFirstValue(System.Security.Claims.ClaimTypes.Surname) ?? "";
+            var displayName = email.Split('@')[0]; // Use email prefix as initial display name
+            
+            var profile = new UserProfile
+            {
+                UserId = user.Id,
+                FirstName = givenName,
+                LastName = surname,
+                DisplayName = displayName,
+                CreatedAt = DateTime.UtcNow
+            };
+            
+            context.UserProfiles.Add(profile);
+            await context.SaveChangesAsync();
 
             await userManager.AddToRoleAsync(user, "User");
         }
@@ -1886,7 +2259,8 @@ public static class UserEndpoint
 
     private static async Task<IResult> GetCurrentUser(
         ClaimsPrincipal claimsPrincipal,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        BookExchangeContext context)
     {
         var userId = claimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (userId == null)
@@ -1900,16 +2274,24 @@ public static class UserEndpoint
             return Results.NotFound();
         }
 
+        var profile = await context.UserProfiles
+            .FirstOrDefaultAsync(p => p.UserId == userId);
+        
+        if (profile == null)
+        {
+            return Results.NotFound(new { message = "User profile not found" });
+        }
+
         var roles = await userManager.GetRolesAsync(user);
 
         var userDto = new UserProfileDto(
             user.Id,
             user.Email!,
-            user.FirstName,
-            user.LastName,
-            user.PhoneNumber,
-            user.AvatarUrl,
-            user.DateOfBirth,
+            profile.FirstName,
+            profile.LastName,
+            profile.PhoneNumber,
+            profile.AvatarUrl,
+            profile.DateOfBirth,
             roles.ToList()
         );
 
@@ -1917,22 +2299,28 @@ public static class UserEndpoint
     }
 
     private static async Task<IResult> GetAllUsers(
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        BookExchangeContext context)
     {
         var users = userManager.Users.Where(u => u.IsActive).ToList();
         
         var userDtos = new List<UserProfileDto>();
         foreach (var user in users)
         {
+            var profile = await context.UserProfiles
+                .FirstOrDefaultAsync(p => p.UserId == user.Id);
+            
+            if (profile == null) continue; // Skip users without profiles
+            
             var roles = await userManager.GetRolesAsync(user);
             userDtos.Add(new UserProfileDto(
                 user.Id,
                 user.Email!,
-                user.FirstName,
-                user.LastName,
-                user.PhoneNumber,
-                user.AvatarUrl,
-                user.DateOfBirth,
+                profile.FirstName,
+                profile.LastName,
+                profile.PhoneNumber,
+                profile.AvatarUrl,
+                profile.DateOfBirth,
                 roles.ToList()
             ));
         }
@@ -2075,6 +2463,7 @@ Content-Type: application/json
   "password": "Test123!@#",
   "firstName": "John",
   "lastName": "Doe",
+  "displayName": "johndoe123",
   "dateOfBirth": "1990-01-01"
 }
 

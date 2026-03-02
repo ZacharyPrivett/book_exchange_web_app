@@ -16,6 +16,7 @@ public class UserProfile
     public required string DisplayName { get; set; }  // Unique, visible to others (username/handle)
     public string? Bio { get; set; }
     public string? AvatarUrl { get; set; }
+    public string? Age { get; set; }
     public DateOnly? DateOfBirth { get; set; }
     public string? PhoneNumber { get; set; }
     

@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BookExchange.Api.UserManagement.UserEntities;
 
-public class UserProfile
+public class UserProfile2
 {
     [Key][ForeignKey(nameof(User))] public int UserId { get; set; }
     public User User { get; set; } = null!;
