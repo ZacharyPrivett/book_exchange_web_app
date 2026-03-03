@@ -20,6 +20,12 @@ public static class AuthEndpoints
             .WithName("Register")
             .Produces<AuthResponseDto>(StatusCodes.Status201Created)
             .Produces<ValidationProblemDetails>(StatusCodes.Status400BadRequest);
+
+        // Login
+        authGroup.MapPost("login", Login)
+            .WithName("Login")
+            .Produces<AuthResponseDto>(StatusCodes.Status200OK)
+            .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized);
         
         return authGroup;
     }
@@ -83,10 +89,83 @@ public static class AuthEndpoints
         await userManager.AddToRoleAsync(user, "User");
 
         // Generate email confirmation token
+        var emailToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
+        var frontendUrl = configuration["AppUrls:FrontendUrl"];
+        var confirmationLink = $"{frontendUrl}/auth/confimr-email?userId={user.Id}$token={Uri.EscapeDataString(emailToken)}";
 
+        // Send confirmation email 
+        await emailService.SendEmailConfirmationAsync(user.Email!, confirmationLink);
+
+        // Generate tokens
+        var roles = await userManager.GetRolesAsync(user);
+        var accessToken = jwtService.GenerateAccessToken(user, roles);
+        var refreshToken = await jwtService.CreateRefreshTokenAsync(user.Id);
+
+        var response = new AuthResponseDto(
+            accessToken,
+            refreshToken.Token,
+            user.Id,
+            user.Email!,
+            profile.DisplayName,
+            roles.ToList()
+        );
+
+        return Results.Created($"/auth/user/{user.Id}", response);
     }
 
+    // Login
+    private static async Task<IResult> Login(
+        LoginDto dto,
+        UserManager<ApplicationUser> userManager,
+        SignInManager<ApplicationUser> signInManager,
+        IJwtService jwtService,
+        BookExchangeContext context)
+    {
+        var user = await userManager.FindByEmailAsync(dto.Email);
+        if (user == null)
+        {
+            return Results.Unauthorized();
+        }
 
+        // Check if email is confirmed
+        if (!await userManager.IsEmailConfirmedAsync(user))
+        {
+            return Results.BadRequest(new { message = "Email not confirmed. Please check you inbox." });
+        }
 
+        var result = await signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: true);
 
+        if (!result.Succeeded)
+        {
+            if (result.IsLockedOut)
+            {
+                return Results.BadRequest(new { message = "Account locked due to multipe failed login attempts." });
+            }
+            return Results.Unauthorized();
+        }
+
+        // Load user profile
+        var profile = await context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
+
+        if (profile == null)
+        {
+            return Results.Problem("User profile not found");
+        }
+
+        // Generate tokens
+        var roles = await userManager.GetRolesAsync(user);
+        var accessToken = jwtService.GenerateAccessToken(user, roles);
+        var refreshToken = await jwtService.CreateRefreshTokenAsync(user.Id);
+
+        var response = new AuthResponseDto(
+            accessToken,
+            refreshToken.Token,
+            user.Id,
+            user.Email!,
+            profile.DisplayName,
+            roles.ToList()
+        );
+
+        return Results.Ok(response);
+    }    
 }
