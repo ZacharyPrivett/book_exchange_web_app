@@ -26,6 +26,12 @@ public static class AuthEndpoints
             .WithName("Login")
             .Produces<AuthResponseDto>(StatusCodes.Status200OK)
             .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized);
+
+        // Refresh
+        authGroup.MapPost("refresh", RefreshToken)
+            .WithName("RefreshToken")
+            .Produces<AuthResponseDto>(StatusCodes.Status200OK)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
         
         return authGroup;
     }
@@ -167,5 +173,65 @@ public static class AuthEndpoints
         );
 
         return Results.Ok(response);
-    }    
+    }   
+    
+    private static async Task<IResult> RefreshToken(
+        RefreshTokenDto dto,
+        UserManager<ApplicationUser> userManager,
+        IJwtService jwtService,
+        BookExchangeContext context)
+    {
+        // Validate the expired access token
+        var principal = jwtService.GetPrincipalFromExpiredToken(dto.AccessToken);
+        if (principal == null)
+        {
+            return Results.BadRequest(new {message = "Invalid access token" });
+        }
+
+        var userId = principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (userId == null)
+        {
+            return Results.BadRequest(new { message = "Invalid token claims" });
+        }
+
+        // Validate refresh token
+        var refreshToken = await jwtService.GetValidRefreshTokenAsync(dto.RefreshToken);
+        if (refreshToken == null || refreshToken.UserId != userId)
+        {
+            return Results.BadRequest(new { message = "Invalid or expired refresh token" });
+        }
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user == null || !user.IsActive)
+        {
+            return Results.BadRequest(new { message = "User not found or inactive" });
+        }
+
+        // Revoke old refresh token and create new one
+        await jwtService.RevokeRefreshTokenAsync(dto.RefreshToken);
+        var newRefreshToken = await jwtService.CreateRefreshTokenAsync(user.Id);
+
+        // Load user profile
+        var profile = await context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
+
+        if (profile == null)
+        {
+            return Results.Problem("User profile not found");
+        }
+
+        // Generate new access token
+        var roles = await userManager.GetRolesAsync(user);
+        var newAccessToken = jwtService.GenerateAccessToken(user, roles);
+
+        var response = new AuthResponseDto(
+            newAccessToken,
+            newRefreshToken.Token,
+            user.Id,
+            user.Email!,
+            profile.DisplayName,
+            roles.ToList()
+        );
+
+        return Results.Ok(response);
+    }
 }
