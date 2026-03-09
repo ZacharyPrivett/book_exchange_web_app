@@ -2,6 +2,7 @@ using BookExchange.Api.Auth.Dtos;
 using BookExchange.Api.Auth.Entities;
 using BookExchange.Api.Auth.Services;
 using BookExchange.Api.Data;
+using BookExchange.Api.UserManagement.UserEntities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -32,7 +33,24 @@ public static class AuthEndpoints
             .WithName("RefreshToken")
             .Produces<AuthResponseDto>(StatusCodes.Status200OK)
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
-        
+
+        // Confirm Email
+        authGroup.MapGet("confirm-email", ConfirmEmail)
+            .WithName("ConfirmEmail")
+            .Produces(StatusCodes.Status200OK)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
+
+        // Forgot Password
+        authGroup.MapPost("forgot-password", ForgotPassword)
+            .WithName("ForgotPassword")
+            .Produces(StatusCodes.Status200OK);
+
+        // Reset Password
+        authGroup.MapPost("reset-password", ResetPassword)
+            .WithName("ResetPassword")
+            .Produces(StatusCodes.Status200OK)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest); 
+
         return authGroup;
     }
 
@@ -234,4 +252,68 @@ public static class AuthEndpoints
 
         return Results.Ok(response);
     }
+
+    // Confirm Eamil
+    private static async Task<IResult> ConfirmEmail(
+        string userId,
+        string token,
+        UserManager<ApplicationUser> userManager)
+    {
+        var user = await userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            return Results.BadRequest(new { message = "Invalid user ID" });
+        }
+
+        var result = await userManager.ConfirmEmailAsync(user, token);
+        if (!result.Succeeded)
+        {
+            return Results.BadRequest(new { errors = result.Errors.Select(e => e.Description) });
+        }
+
+        return Results.Ok(new { message = "Email confirmed succesfully"});
+    }
+
+    // Forogt Pasaword\
+    private static async Task<IResult> ForgotPassword(
+        ForgotPasswordDto dto,
+        UserManager<ApplicationUser> userManager,
+        IEmailService emailService,
+        IConfiguration configuration)
+    {
+        var user = await userManager.FindByEmailAsync(dto.Email);
+
+        if (user == null || !await userManager.IsEmailConfirmedAsync(user))
+        {
+            return Results.Ok(new { message = "If the email exists, a reset link has been sent" });
+        }
+
+        var resetToken = await userManager.GeneratePasswordResetTokenAsync(user);
+        var frontendUrl = configuration["AppUrls:FrontendUrl"];
+        var resetLink = $"{frontendUrl}/auth/reset-password?email={Uri.EscapeDataString(dto.Email)}&token={Uri.EscapeDataString(resetToken)}";
+
+        await emailService.SendPasswordResetAsync(user.Email!, resetLink);
+
+        return Results.Ok(new { message = "If the email exists, a reset link has been sent"});
+    }
+
+    private static async Task<IResult> ResetPassword(
+        ResetPasswordDto dto,
+        UserManager<ApplicationUser> userManager)
+    {
+        var user = await userManager.FindByEmailAsync(dto.Email);
+        if (user == null)
+        {
+            return Results.BadRequest(new { message = "Invalid request" });
+        }
+
+        var result = await userManager.ResetPasswordAsync(user, dto.Token, dto.NewPassword);
+        if (!result.Succeeded)
+        {
+            return Results.BadRequest(new { errors = result.Errors.Select(e => e.Description) });
+        }
+
+        return Results.Ok(new { message = "Password reset successfully"});
+    }
 }
+
