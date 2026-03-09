@@ -32,6 +32,11 @@ public static class AuthEndpoints
             .WithName("RefreshToken")
             .Produces<AuthResponseDto>(StatusCodes.Status200OK)
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
+
+        authGroup.MapGet("confirm-email", ConfirmEmail)
+            .WithName("ConfirmEmail")
+            .Produces(StatusCodes.Status200OK)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
         
         return authGroup;
     }
@@ -233,5 +238,25 @@ public static class AuthEndpoints
         );
 
         return Results.Ok(response);
+    }
+
+    private static async Task<IResult> ConfirmEmail(
+        string userId,
+        string token,
+        UserManager<ApplicationUser> userManager)
+    {
+        var user = await userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            return Results.BadRequest(new { message = "Invalid user ID" });
+        }
+
+        var result = await userManager.ConfirmEmailAsync(user, token);
+        if (!result.Succeeded)
+        {
+            return Results.BadRequest(new { errors = result.Errors.Select(e => e.Description) });
+        }
+
+        return Results.Ok(new { message = "Email confirmed succesfully"});
     }
 }
