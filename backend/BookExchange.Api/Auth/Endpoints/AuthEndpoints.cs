@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BookExchange.Api.Auth.Dtos;
 using BookExchange.Api.Auth.Entities;
 using BookExchange.Api.Auth.Services;
@@ -50,6 +51,16 @@ public static class AuthEndpoints
             .WithName("ResetPassword")
             .Produces(StatusCodes.Status200OK)
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest); 
+
+        // OAuth Login (Google/Microsoft)
+        authGroup.MapGet("external-login/{provider}", ExternalLogin)
+            .WithName("ExternalLogin")
+            .Produces(StatusCodes.Status302Found);
+
+        // OAuth Callback (Google/Microsoft)
+        authGroup.MapGet("external-login-callback", ExternalLoginCallback)
+            .WithName("ExternalLoginCallback")
+            .Produces<AuthResponseDto>(StatusCodes.Status200OK);
 
         return authGroup;
     }
@@ -315,5 +326,82 @@ public static class AuthEndpoints
 
         return Results.Ok(new { message = "Password reset successfully"});
     }
+
+    private static async Task<IResult> ExternalLogin(
+        string provider,
+        string? returnUrl,
+        IConfiguration configuration)
+    {
+        var redirectUrl = $"{configuration["AppUrls:ApiUrl"]}/auth/external-login-callback?retunUrl={returnUrl}";
+        var properties = new Microsoft.AspNetCore.Authentication.AuthenticationProperties
+        {
+            RedirectUri = redirectUrl
+        };
+
+        return Results.Challenge(properties, new[] { provider });
+    }
+
+    private static async Task<IResult> ExternalLoginCallback(
+        string? returnUrl,
+        UserManager<ApplicationUser> userManager,
+        SignInManager<ApplicationUser> signInManager,
+        IJwtService jwtService,
+        IConfiguration configuration,
+        BookExchangeContext bookExchangeContext)
+    {
+        var info = await signInManager.GetExternalLoginInfoAsync();
+        if (info == null)
+        {
+            return Results.Redirect($"{configuration["AppUrls:FrontendUrl"]}/auth/login?error=external_auth_failed");
+        }
+
+        // Try to sign in with external login provider
+        var result = await signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: false);
+
+        ApplicationUser user;
+
+        if (result.Succeeded)
+        {
+            // User already has account with this external provider
+            user = await userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey) ?? throw new Exception("User not found after successful external login");
+        }
+        else
+        {
+            // Create new account
+            var email = info.Principal.FindFirstValue(System.Security.Claims.ClaimTypes.Email);
+            if (email == null)
+            {
+                return Results.Redirect($"{configuration["AppUrls:FrontendUrl"]}/auth/login?error=no_email");
+            }
+
+            user = await userManager.FindByEmailAsync(email);
+
+            if (user == null)
+            {
+                // Create new user (auth only)
+                user = new ApplicationUser
+                {
+                    UserName = email,
+                    Email = email,
+                    EmailConfirmed = true, // Email verified by external provider
+                    CreatedAt = DateTime.UtcNow,
+                };
+
+                var createResult = await userManager.CreateAsync(user);
+                if (!createResult.Succeeded)
+                {
+                    return Results.Redirect($"{configuration["AppUrls:FrontendUrl"]}/auth/login?error=user_creation_failed");
+                }
+
+                // Create user profile
+                var givenName = info.Principal.FindFirstValue(System.Security.Claims.ClaimTypes.GivenName) ?? "User";
+                var surname = info.Principal.FindFirstValue(System.Security.Claims.ClaimTypes.Surname) ?? "";
+                var displayName = email.Split('@')[0];
+            }
+        }
+    }
+
+
 }
+
 
