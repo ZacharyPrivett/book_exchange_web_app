@@ -1,6 +1,7 @@
 using System.Text;
 using BookExchange.Api.Auth.Entities;
 using BookExchange.Api.Auth.Services;
+using BookExchange.Api.Auth.Endpoints;
 using BookExchange.Api.Data;
 using BookExchange.Api.Endpoints;
 using BookExchange.Api.UserManagement.UserEndpoints;
