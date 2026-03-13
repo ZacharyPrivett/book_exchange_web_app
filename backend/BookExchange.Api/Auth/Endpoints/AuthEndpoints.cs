@@ -1,9 +1,9 @@
 using System.Security.Claims;
+using Azure.Core;
 using BookExchange.Api.Auth.Dtos;
 using BookExchange.Api.Auth.Entities;
 using BookExchange.Api.Auth.Services;
 using BookExchange.Api.Data;
-using BookExchange.Api.UserManagement.UserEntities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -347,7 +347,7 @@ public static class AuthEndpoints
         SignInManager<ApplicationUser> signInManager,
         IJwtService jwtService,
         IConfiguration configuration,
-        BookExchangeContext bookExchangeContext)
+        BookExchangeContext context)
     {
         var info = await signInManager.GetExternalLoginInfoAsync();
         if (info == null)
@@ -358,7 +358,7 @@ public static class AuthEndpoints
         // Try to sign in with external login provider
         var result = await signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: false);
 
-        ApplicationUser user;
+        ApplicationUser? user;
 
         if (result.Succeeded)
         {
@@ -397,8 +397,35 @@ public static class AuthEndpoints
                 var givenName = info.Principal.FindFirstValue(System.Security.Claims.ClaimTypes.GivenName) ?? "User";
                 var surname = info.Principal.FindFirstValue(System.Security.Claims.ClaimTypes.Surname) ?? "";
                 var displayName = email.Split('@')[0];
+
+                var profile = new UserProfile
+                {
+                    UserId = user.Id,
+                    FirstName = givenName,
+                    LastName = surname,
+                    DisplayName = displayName,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                context.UserProfiles.Add(profile);
+                await context.SaveChangesAsync();
+
+                await userManager.AddToRoleAsync(user, "User");
+                
             }
+
+            // Link external login to user account
+            await userManager.AddLoginAsync(user, info);
         }
+
+        // Generate tokens
+        var roles = await userManager.GetRolesAsync(user);
+        var accessToken = jwtService.GenerateAccessToken(user, roles);
+        var refreshToken = await jwtService.CreateRefreshTokenAsync(user.Id);
+
+        // Redirect to frontend with tokens
+        var frontendUrl = configuration["AppUrls:FrontendUrl"];
+        return Results.Redirect($"{frontendUrl}/auth/callback?accessToken={accessToken}&{refreshToken.Token}");
     }
 
 

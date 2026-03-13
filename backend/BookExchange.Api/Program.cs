@@ -4,7 +4,6 @@ using BookExchange.Api.Auth.Services;
 using BookExchange.Api.Auth.Endpoints;
 using BookExchange.Api.Data;
 using BookExchange.Api.Endpoints;
-using BookExchange.Api.UserManagement.UserEndpoints;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -105,8 +104,7 @@ app.UseAuthorization();
 app.MapBooksEndpoints();
 app.MapGenresEndpoints();
 app.MapConditionsEndpoints();
-app.MapAuthEndpoints(); // Still need to build
-app.MapUserEndpoints(); // In progress
+app.MapAuthEndpoints(); 
 
 // Database migration
 await app.MigrateDbAsync();
