@@ -2216,20 +2216,46 @@ private static async Task<IResult> ExternalLoginCallback(
 
 ## Phase 10: Role-Based Authorization
 
-### Step 10.1: Update UserEndpoints with Authorization
+### Step 10.1: Create User Profile DTO
 
-Update `UserManagement/UserEndpoints/UserEndpoints.cs`:
+Create `Users/Dtos/UserProfileDto.cs`:
+
+```csharp
+namespace BookExchange.Api.Users.Dtos;
+
+public record UserProfileDto(
+    string Id,
+    string Email,
+    string FirstName,
+    string LastName,
+    string? PhoneNumber,
+    string? AvatarUrl,
+    DateOnly? DateOfBirth,
+    List<string> Roles
+);
+```
+
+**📘 Why This DTO?**
+- Combines data from `ApplicationUser` (Id, Email, Roles) and `UserProfile` (FirstName, LastName, etc.)
+- Excludes sensitive fields like `PasswordHash` and `SecurityStamp`
+- No circular references (doesn't include navigation properties)
+- Safe to return to clients
+
+### Step 10.2: Create User Endpoints
+
+Create `Users/Endpoints/UserEndpoints.cs`:
 
 ```csharp
 using BookExchange.Api.Auth.Entities;
 using BookExchange.Api.Data;
-using Microsoft.AspNetCore.Authorization;
+using BookExchange.Api.Users.Dtos;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
-namespace BookExchange.Api.UserManagement.UserEndpoints;
+namespace BookExchange.Api.Users.Endpoints;
 
-public static class UserEndpoint
+public static class UserEndpoints
 {
     public static RouteGroupBuilder MapUserEndpoints(this WebApplication app)
     {
@@ -2345,20 +2371,21 @@ public static class UserEndpoint
         return Results.NoContent();
     }
 }
-
-public record UserProfileDto(
-    string Id,
-    string Email,
-    string FirstName,
-    string LastName,
-    string? PhoneNumber,
-    string? AvatarUrl,
-    DateOnly? DateOfBirth,
-    List<string> Roles
-);
 ```
 
-### Step 10.2: Configure Authorization Policies
+### Step 10.3: Register User Endpoints
+
+Add to `Program.cs` before `app.MapAuthEndpoints();`:
+
+```csharp
+// Import at the top
+using BookExchange.Api.Users.Endpoints;
+
+// ... in the endpoint registration section
+app.MapUserEndpoints();
+```
+
+### Step 10.4: Configure Authorization Policies
 
 Add to `Program.cs` after `builder.Services.AddAuthorization()`:
 
@@ -2371,12 +2398,25 @@ builder.Services.AddAuthorization(options =>
 });
 ```
 
-### Step 10.3: Create Role Management Endpoints (Admin Only)
+### Step 10.5: Create Role Management Endpoints (Admin Only)
 
-Add to `Auth/Endpoints/AuthEndpoints.cs`:
+Create `Auth/Dtos/AssignRoleDto.cs`:
 
 ```csharp
-// Add to MapAuthEndpoints method:
+using System.ComponentModel.DataAnnotations;
+
+namespace BookExchange.Api.Auth.Dtos;
+
+public record AssignRoleDto(
+    [Required] string UserId,
+    [Required] string RoleName // "Admin", "User", "Moderator"
+);
+```
+
+Add to `Auth/Endpoints/AuthEndpoints.cs` inside the `MapAuthEndpoints` method:
+
+```csharp
+// Add this to MapAuthEndpoints method after the other endpoint mappings:
 var adminGroup = authGroup.MapGroup("admin")
     .RequireAuthorization("Admin")
     .WithTags("Admin");
@@ -2386,8 +2426,11 @@ adminGroup.MapPost("assign-role", AssignRole)
 
 adminGroup.MapPost("remove-role", RemoveRole)
     .WithName("RemoveRole");
+```
 
-// Add these methods:
+Add these methods to `AuthEndpoints` class:
+
+```csharp
 private static async Task<IResult> AssignRole(
     AssignRoleDto dto,
     UserManager<ApplicationUser> userManager)
@@ -2425,19 +2468,6 @@ private static async Task<IResult> RemoveRole(
 
     return Results.Ok(new { message = $"Role '{dto.RoleName}' removed from user" });
 }
-```
-
-Create `Auth/Dtos/AssignRoleDto.cs`:
-
-```csharp
-using System.ComponentModel.DataAnnotations;
-
-namespace BookExchange.Api.Auth.Dtos;
-
-public record AssignRoleDto(
-    [Required] string UserId,
-    [Required] string RoleName // "Admin", "User", "Moderator"
-);
 ```
 
 ---
