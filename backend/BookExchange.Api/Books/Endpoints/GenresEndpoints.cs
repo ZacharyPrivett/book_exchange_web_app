@@ -1,10 +1,9 @@
-using System;
 using BookExchange.Api.Data;
-using BookExchange.Api.Entities;
-using BookExchange.Api.Mapping;
+using BookExchange.Api.Books.Entities;
+using BookExchange.Api.Books.Mapping;
 using Microsoft.EntityFrameworkCore;
 
-namespace BookExchange.Api.Endpoints;
+namespace BookExchange.Api.Books.Endpoints;
 
 public static class GenresEndpoints
 {

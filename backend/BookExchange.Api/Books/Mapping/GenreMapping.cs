@@ -1,9 +1,8 @@
-using System;
-using BookExchange.Api.Entities;
-using BookExchange.Api.Dtos;
+using BookExchange.Api.Books.Entities;
+using BookExchange.Api.Books.Dtos;
 
 
-namespace BookExchange.Api.Mapping;
+namespace BookExchange.Api.Books.Mapping;
 
 public static class GenreMapping
 {

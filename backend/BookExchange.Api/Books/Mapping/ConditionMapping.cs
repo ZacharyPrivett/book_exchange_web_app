@@ -1,8 +1,7 @@
-using System;
-using BookExchange.Api.Dtos;
-using BookExchange.Api.Entities;
+using BookExchange.Api.Books.Dtos;
+using BookExchange.Api.Books.Entities;
 
-namespace BookExchange.Api.Mapping;
+namespace BookExchange.Api.Books.Mapping;
 
 public static class ConditionMapping
 {

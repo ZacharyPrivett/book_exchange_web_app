@@ -28,6 +28,6 @@
     <Folder Include="Auth\Dtos\" />
     <Folder Include="Auth\Entities\" />
     <Folder Include="Auth\Services\" />
-    <Folder Include="Users\" />
+    <Folder Include="Users\Endpoints\" />
   </ItemGroup>
 </Project>
