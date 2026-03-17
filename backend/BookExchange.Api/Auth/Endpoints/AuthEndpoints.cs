@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using Azure.Core;
 using BookExchange.Api.Auth.Dtos;
 using BookExchange.Api.Auth.Entities;
 using BookExchange.Api.Auth.Services;

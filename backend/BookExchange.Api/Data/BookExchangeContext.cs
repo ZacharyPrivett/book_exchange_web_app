@@ -1,6 +1,6 @@
 using System;
 using BookExchange.Api.Auth.Entities;
-using BookExchange.Api.Entities;
+using BookExchange.Api.Books.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;

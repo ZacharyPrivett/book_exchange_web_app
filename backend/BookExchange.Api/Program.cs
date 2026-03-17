@@ -3,11 +3,13 @@ using BookExchange.Api.Auth.Entities;
 using BookExchange.Api.Auth.Services;
 using BookExchange.Api.Auth.Endpoints;
 using BookExchange.Api.Data;
-using BookExchange.Api.Endpoints;
+using BookExchange.Api.Books.Endpoints;
+using BookExchange.Api.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using BookExchange.Api.Users.Endpoints;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -90,7 +92,7 @@ builder.Services.AddCors(options =>
 
 // Register services
 builder.Services.AddScoped<IJwtService, JwtService>();
-builder.Services.AddScoped<IEmailService, EmailService>(); // Still need to build
+builder.Services.AddScoped<IEmailService, EmailService>(); 
 
 
 var app = builder.Build();
@@ -104,7 +106,8 @@ app.UseAuthorization();
 app.MapBooksEndpoints();
 app.MapGenresEndpoints();
 app.MapConditionsEndpoints();
-app.MapAuthEndpoints(); 
+app.MapAuthEndpoints();
+app.MapUserEndpoints(); 
 
 // Database migration
 await app.MigrateDbAsync();

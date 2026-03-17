@@ -1,5 +1,3 @@
-using System;
-using BookExchange.Api.UserManagement.UserEntities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Identity.Client;
 

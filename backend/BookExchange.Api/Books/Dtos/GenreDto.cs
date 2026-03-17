@@ -1,4 +1,4 @@
-namespace BookExchange.Api.Dtos;
+namespace BookExchange.Api.Books.Dtos;
 
 public record class GenreDto(int Id, string Name);
 

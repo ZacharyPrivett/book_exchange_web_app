@@ -1,10 +1,11 @@
 using BookExchange.Api.Data;
-using BookExchange.Api.Dtos;
-using BookExchange.Api.Entities;
-using BookExchange.Api.Mapping;
+using BookExchange.Api.Books.Dtos;
+using BookExchange.Api.Books.Entities;
+using BookExchange.Api.Books.Mapping;
 using Microsoft.EntityFrameworkCore;
 
-namespace BookExchange.Api.Endpoints;
+
+namespace BookExchange.Api.Books.Endpoints;
 
 public static class BooksEndpoints
 {

@@ -1,5 +1,4 @@
-
-namespace BookExchange.Api.Entities;
+namespace BookExchange.Api.Books.Entities;
 
 public class Genre
 {
