@@ -61,6 +61,17 @@ public static class AuthEndpoints
             .WithName("ExternalLoginCallback")
             .Produces<AuthResponseDto>(StatusCodes.Status200OK);
 
+        // Create admin group - auth/admin
+        var adminGroup = authGroup.MapGroup("admin")
+            .RequireAuthorization("Admin")
+            .WithTags("Admin");
+        
+        adminGroup.MapPost("assign-role", AssignRole)
+            .WithName("AssignRole");
+        
+        adminGroup.MapPost("remove-role", RemoveRole)
+            .WithName("RemoveRole");
+
         return authGroup;
     }
 
@@ -427,7 +438,43 @@ public static class AuthEndpoints
         return Results.Redirect($"{frontendUrl}/auth/callback?accessToken={accessToken}&{refreshToken.Token}");
     }
 
+    private static async Task<IResult> AssignRole(
+        AssignRoleDto dto,
+        UserManager<ApplicationUser> userManager)
+    {
+        var user = await userManager.FindByIdAsync(dto.UserId);
+        if (user == null)
+        {
+            return Results.NotFound(new { message = "User not found" });
+        }
 
+        var result = await userManager.AddToRoleAsync(user, dto.UserId);
+        if (!result.Succeeded)
+        {
+            return Results.BadRequest(new { errors = result.Errors.Select(e => e.Description) });
+        }
+
+        return Results.Ok(new { message = $"Role '{dto.RoleName}' assigned to user" });
+    } 
+
+    private static async Task<IResult> RemoveRole(
+        AssignRoleDto dto,
+        UserManager<ApplicationUser> userManager)
+    {
+        var user = await userManager.FindByIdAsync(dto.UserId);
+        if (user == null)
+        {
+            return Results.NotFound(new { message = "User not found" });
+        }
+
+        var result = await userManager.RemoveFromRoleAsync(user, dto.RoleName);
+        if (!result.Succeeded)
+        {
+            return Results.BadRequest(new { errors = result.Errors.Select(e => e.Description) });
+        }
+
+        return Results.Ok(new { message = $"Role '{dto.RoleName}' removed from user" });
+    }
 }
 
 
