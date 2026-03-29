@@ -4,7 +4,6 @@ using BookExchange.Api.Auth.Services;
 using BookExchange.Api.Auth.Endpoints;
 using BookExchange.Api.Data;
 using BookExchange.Api.Books.Endpoints;
-using BookExchange.Api.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -75,7 +74,12 @@ builder.Services.AddAuthentication(options =>
 });
 
 // Authorizaton
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("Moderator", policy => policy.RequireRole("Admin", "Moderator"));
+    options.AddPolicy("User", policy => policy.RequireRole("Admin", "Moderator", "User"));
+});
 
 
 // CORS
