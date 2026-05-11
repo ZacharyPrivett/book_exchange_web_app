@@ -9,9 +9,41 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using BookExchange.Api.Users.Endpoints;
+using Azure.Extensions.AspNetCore.Configuration.Secrets;
+using Azure.Identity;
+
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+//builder.AddServiceDefaults();
+
+builder.Configuration.AddAzureKeyVault(
+    new Uri(builder.Configuration["KeyVault:VaultUri"]!),
+    new DefaultAzureCredential()
+);
+
+// var keyVaultUri = builder.Configuration["KeyVault:VaultUri"];
+
+// if (!string.IsNullOrEmpty(keyVaultUri))
+// {
+//     var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+//     {
+//         ExcludeEnvironmentCredential = false,
+//         ExcludeManagedIdentityCredential = false,
+//         ExcludeSharedTokenCacheCredential = true,
+//         ExcludeVisualStudioCredential = false,
+//         ExcludeVisualStudioCodeCredential = false,
+//         ExcludeAzureCliCredential = false,
+//         ExcludeInteractiveBrowserCredential = true 
+//     });
+
+//     // Add Key Vault to configuration
+//     builder.Configuration.AddAzureKeyVault(
+//         new Uri(keyVaultUri),
+//         credential
+//     );
+// });
 
 var connString = builder.Configuration.GetConnectionString("BookExchange");
 builder.Services.AddDbContext<BookExchangeContext>(options =>
