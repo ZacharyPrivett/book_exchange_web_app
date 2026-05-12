@@ -52,7 +52,7 @@ public class BookExchangeContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(e => e.DisplayName).IsUnique();
             entity.HasOne(e => e.User)
                   .WithOne(u => u.Profile)
-                  .HasForeignKey<UserProfile>(e => e.User.Id)
+                  .HasForeignKey<UserProfile>(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
 

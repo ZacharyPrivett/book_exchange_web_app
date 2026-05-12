@@ -16,34 +16,14 @@ using Azure.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
-//builder.AddServiceDefaults();
-
-builder.Configuration.AddAzureKeyVault(
-    new Uri(builder.Configuration["KeyVault:VaultUri"]!),
-    new DefaultAzureCredential()
-);
-
-// var keyVaultUri = builder.Configuration["KeyVault:VaultUri"];
-
-// if (!string.IsNullOrEmpty(keyVaultUri))
-// {
-//     var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
-//     {
-//         ExcludeEnvironmentCredential = false,
-//         ExcludeManagedIdentityCredential = false,
-//         ExcludeSharedTokenCacheCredential = true,
-//         ExcludeVisualStudioCredential = false,
-//         ExcludeVisualStudioCodeCredential = false,
-//         ExcludeAzureCliCredential = false,
-//         ExcludeInteractiveBrowserCredential = true 
-//     });
-
-//     // Add Key Vault to configuration
-//     builder.Configuration.AddAzureKeyVault(
-//         new Uri(keyVaultUri),
-//         credential
-//     );
-// });
+var keyVaultUri = builder.Configuration["KeyVault:VaultUri"];
+if (!string.IsNullOrEmpty(keyVaultUri))
+{
+    builder.Configuration.AddAzureKeyVault(
+        new Uri(keyVaultUri),
+        new DefaultAzureCredential()
+    );
+}
 
 var connString = builder.Configuration.GetConnectionString("BookExchange");
 builder.Services.AddDbContext<BookExchangeContext>(options =>
@@ -96,7 +76,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddGoogle(options =>
 {
-    options.ClientId = builder.Configuration["Authentication:Google:ClientId"] ?? "";
+    options.ClientId = builder.Configuration["Authentication:Google:Id"] ?? "";
     options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? "";
 })
 .AddMicrosoftAccount(options =>
