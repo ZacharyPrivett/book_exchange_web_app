@@ -52,7 +52,7 @@ public class BookExchangeContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(e => e.DisplayName).IsUnique();
             entity.HasOne(e => e.User)
                   .WithOne(u => u.Profile)
-                  .HasForeignKey<UserProfile>(e => e.User.Id)
+                  .HasForeignKey<UserProfile>(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -72,9 +72,27 @@ public class BookExchangeContext : IdentityDbContext<ApplicationUser>
         var moderatorRoleId = "3";
 
         modelBuilder.Entity<IdentityRole>().HasData(
-            new IdentityRole { Id = adminRoleId, Name = "Admin", NormalizedName = "ADMIN" },
-            new IdentityRole { Id = userRoleId, Name = "User", NormalizedName = "USER" },
-            new IdentityRole { Id = moderatorRoleId, Name = "Moderator", NormalizedName = "MODERATOR" }
+            new IdentityRole
+            { 
+                Id = adminRoleId,
+                Name = "Admin",
+                NormalizedName = "ADMIN",
+                ConcurrencyStamp = "admin-role-v1"
+            },
+            new IdentityRole
+            {
+                Id = userRoleId,
+                Name = "User",
+                NormalizedName = "USER",
+                ConcurrencyStamp = "user-role-v1"
+            },
+            new IdentityRole
+            {
+                Id = moderatorRoleId,
+                Name = "Moderator",
+                NormalizedName = "MODERATOR",
+                ConcurrencyStamp = "moderator-role-v1"
+            }
         );
     }
 }
