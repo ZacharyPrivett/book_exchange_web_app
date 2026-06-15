@@ -172,11 +172,13 @@ public static class AuthEndpoints
             return Results.Unauthorized();
         }
 
+        // ToDo: add back in durring porduction
+
         // Check if email is confirmed
-        if (!await userManager.IsEmailConfirmedAsync(user))
-        {
-            return Results.BadRequest(new { message = "Email not confirmed. Please check you inbox." });
-        }
+        // if (!await userManager.IsEmailConfirmedAsync(user))
+        // {
+        //     return Results.BadRequest(new { message = "Email not confirmed. Please check you inbox." });
+        // }
 
         var result = await signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: true);
 
@@ -295,7 +297,7 @@ public static class AuthEndpoints
         return Results.Ok(new { message = "Email confirmed succesfully"});
     }
 
-    // Forogt Pasaword\
+    // Forgot Pasaword
     private static async Task<IResult> ForgotPassword(
         ForgotPasswordDto dto,
         UserManager<ApplicationUser> userManager,
