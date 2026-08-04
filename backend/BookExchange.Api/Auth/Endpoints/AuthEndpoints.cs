@@ -344,7 +344,7 @@ public static class AuthEndpoints
         string? returnUrl,
         IConfiguration configuration)
     {
-        var redirectUrl = $"{configuration["AppUrls:ApiUrl"]}/auth/external-login-callback?retunUrl={returnUrl}";
+        var redirectUrl = $"{configuration["AppUrls:ApiUrl"]}/auth/external-login-callback?returnUrl={returnUrl}";
         var properties = new Microsoft.AspNetCore.Authentication.AuthenticationProperties
         {
             RedirectUri = redirectUrl
