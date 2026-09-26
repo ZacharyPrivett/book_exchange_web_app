@@ -6,7 +6,8 @@ using BookExchange.Api.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authentication;
 
 namespace BookExchange.Api.Auth.Endpoints;
 
@@ -342,14 +343,11 @@ public static class AuthEndpoints
     private static async Task<IResult> ExternalLogin(
         string provider,
         string? returnUrl,
+        SignInManager<ApplicationUser> signInManager,
         IConfiguration configuration)
     {
-        var redirectUrl = $"{configuration["AppUrls:ApiUrl"]}/auth/external-login-callback?retunUrl={returnUrl}";
-        var properties = new Microsoft.AspNetCore.Authentication.AuthenticationProperties
-        {
-            RedirectUri = redirectUrl
-        };
-
+        var redirectUrl = $"{configuration["AppUrls:ApiUrl"]}/auth/external-login-callback?returnUrl={returnUrl}";
+        var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
         return Results.Challenge(properties, new[] { provider });
     }
 
@@ -359,12 +357,33 @@ public static class AuthEndpoints
         SignInManager<ApplicationUser> signInManager,
         IJwtService jwtService,
         IConfiguration configuration,
-        BookExchangeContext context)
+        BookExchangeContext context,
+        HttpContext httpContext)  // Add HttpContext parameter
     {
+        // Log all cookies received
+        // Console.WriteLine("=== Cookies in external-login-callback ===");
+        // foreach (var cookie in httpContext.Request.Cookies)
+        // {
+        //     Console.WriteLine($"Cookie: {cookie.Key} = {cookie.Value}");
+        // }
+        
+        // Diagnostic logging for external login authentication result
+        
+        // var authResult = await httpContext.AuthenticateAsync(Microsoft.AspNetCore.Identity.IdentityConstants.ExternalScheme);
+        // Console.WriteLine($"AuthenticateAsync Succeeded: {authResult.Succeeded}");
+        // Console.WriteLine($"Failure: {authResult.Failure}");
+        // Console.WriteLine($"Principal null: {authResult.Principal == null}");
+        // Console.WriteLine($"Properties null: {authResult.Properties == null}");
+        // if (authResult.Properties?.Items != null)
+        // {
+        //     foreach (var kvp in authResult.Properties.Items)
+        //         Console.WriteLine($"Property: {kvp.Key} = {kvp.Value}");
+        // }
+
         var info = await signInManager.GetExternalLoginInfoAsync();
         if (info == null)
         {
-            return Results.Redirect($"{configuration["AppUrls:FrontendUrl"]}/auth/login?error=external_auth_failed");
+            return Results.Redirect($"{configuration["AppUrls:FrontendUrl"]}/auth/callback?error=external_auth_failed");
         }
 
         // Try to sign in with external login provider
@@ -383,7 +402,7 @@ public static class AuthEndpoints
             var email = info.Principal.FindFirstValue(System.Security.Claims.ClaimTypes.Email);
             if (email == null)
             {
-                return Results.Redirect($"{configuration["AppUrls:FrontendUrl"]}/auth/login?error=no_email");
+                return Results.Redirect($"{configuration["AppUrls:FrontendUrl"]}/auth/callback?error=no_email");
             }
 
             user = await userManager.FindByEmailAsync(email);
@@ -402,7 +421,7 @@ public static class AuthEndpoints
                 var createResult = await userManager.CreateAsync(user);
                 if (!createResult.Succeeded)
                 {
-                    return Results.Redirect($"{configuration["AppUrls:FrontendUrl"]}/auth/login?error=user_creation_failed");
+                    return Results.Redirect($"{configuration["AppUrls:FrontendUrl"]}/auth/callback?error=user_creation_failed");
                 }
 
                 // Create user profile
@@ -437,7 +456,7 @@ public static class AuthEndpoints
 
         // Redirect to frontend with tokens
         var frontendUrl = configuration["AppUrls:FrontendUrl"];
-        return Results.Redirect($"{frontendUrl}/auth/callback?accessToken={accessToken}&{refreshToken.Token}");
+        return Results.Redirect($"{frontendUrl}/auth/callback?accessToken={accessToken}&refreshToken={refreshToken.Token}");
     }
 
     private static async Task<IResult> AssignRole(
