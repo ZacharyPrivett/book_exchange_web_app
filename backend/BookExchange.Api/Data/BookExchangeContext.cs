@@ -46,6 +46,11 @@ public class BookExchangeContext : IdentityDbContext<ApplicationUser>
             new { Id = 5, Name = "Worn" }
         );
 
+        modelBuilder.Entity<BookCatalog>()
+            .HasMany(b => b.Authors)
+            .WithMany(a => a.Books)
+            .UsingEntity(j => j.ToTable("BookCatalogAuthors"));
+
         // Configure UserProfile
         modelBuilder.Entity<UserProfile>(entity =>
         {
