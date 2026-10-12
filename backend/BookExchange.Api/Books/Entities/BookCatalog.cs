@@ -13,7 +13,7 @@ public class BookCatalog
     public string? Description { get; set; }
 
      // Cache key so the same Google Books volume is never re-fetched/re-created
-    public required string GoogleBooksId { get; set; }
+    public required string? GoogleBooksId { get; set; }
 
     public ICollection<Author> Authors { get; set; } = [];
     public ICollection<Genre> Genres { get; set; } = [];

@@ -14,6 +14,9 @@ public class Listing
     public required string OwnerId { get; set; }
     public ApplicationUser? Owner { get; set; }
 
+    public int ConditionId { get; set; }
+    public Condition? Condition { get; set; }
+
     public string? Notes { get; set; }
 
     public ListingStatus Status { get; set; } = ListingStatus.Available;
