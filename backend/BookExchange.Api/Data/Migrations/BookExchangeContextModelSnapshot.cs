@@ -22,6 +22,36 @@ namespace BookExchange.Api.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("AuthorBookCatalog", b =>
+                {
+                    b.Property<int>("AuthorsId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BooksId")
+                        .HasColumnType("int");
+
+                    b.HasKey("AuthorsId", "BooksId");
+
+                    b.HasIndex("BooksId");
+
+                    b.ToTable("BookCatalogAuthors", (string)null);
+                });
+
+            modelBuilder.Entity("BookCatalogGenre", b =>
+                {
+                    b.Property<int>("BooksId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GenresId")
+                        .HasColumnType("int");
+
+                    b.HasKey("BooksId", "GenresId");
+
+                    b.HasIndex("GenresId");
+
+                    b.ToTable("BookCatalogGenres", (string)null);
+                });
+
             modelBuilder.Entity("BookExchange.Api.Auth.Entities.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -193,6 +223,23 @@ namespace BookExchange.Api.Data.Migrations
                     b.ToTable("UserProfiles");
                 });
 
+            modelBuilder.Entity("BookExchange.Api.Books.Entities.Author", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Authors");
+                });
+
             modelBuilder.Entity("BookExchange.Api.Books.Entities.Book", b =>
                 {
                     b.Property<int>("Id")
@@ -233,6 +280,51 @@ namespace BookExchange.Api.Data.Migrations
                     b.HasIndex("GenreId");
 
                     b.ToTable("Books");
+                });
+
+            modelBuilder.Entity("BookExchange.Api.Books.Entities.BookCatalog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CoverImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("GoogleBooksId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ISBN10")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ISBN13")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("PageCount")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PublishedYear")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Publisher")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GoogleBooksId")
+                        .IsUnique()
+                        .HasFilter("[GoogleBooksId] IS NOT NULL");
+
+                    b.ToTable("BookCatalogs");
                 });
 
             modelBuilder.Entity("BookExchange.Api.Books.Entities.Condition", b =>
@@ -321,6 +413,47 @@ namespace BookExchange.Api.Data.Migrations
                             Id = 5,
                             Name = "Military Thriller"
                         });
+                });
+
+            modelBuilder.Entity("BookExchange.Api.Books.Entities.Listing", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BookCatalogId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ConditionId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookCatalogId");
+
+                    b.HasIndex("ConditionId");
+
+                    b.HasIndex("OwnerId");
+
+                    b.ToTable("Listings");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -479,6 +612,36 @@ namespace BookExchange.Api.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("AuthorBookCatalog", b =>
+                {
+                    b.HasOne("BookExchange.Api.Books.Entities.Author", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BookExchange.Api.Books.Entities.BookCatalog", null)
+                        .WithMany()
+                        .HasForeignKey("BooksId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BookCatalogGenre", b =>
+                {
+                    b.HasOne("BookExchange.Api.Books.Entities.BookCatalog", null)
+                        .WithMany()
+                        .HasForeignKey("BooksId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BookExchange.Api.Books.Entities.Genre", null)
+                        .WithMany()
+                        .HasForeignKey("GenresId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("BookExchange.Api.Auth.Entities.RefreshToken", b =>
                 {
                     b.HasOne("BookExchange.Api.Auth.Entities.ApplicationUser", "User")
@@ -518,6 +681,33 @@ namespace BookExchange.Api.Data.Migrations
                     b.Navigation("Condition");
 
                     b.Navigation("Genre");
+                });
+
+            modelBuilder.Entity("BookExchange.Api.Books.Entities.Listing", b =>
+                {
+                    b.HasOne("BookExchange.Api.Books.Entities.BookCatalog", "BookCatalog")
+                        .WithMany("Listings")
+                        .HasForeignKey("BookCatalogId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BookExchange.Api.Books.Entities.Condition", "Condition")
+                        .WithMany()
+                        .HasForeignKey("ConditionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BookExchange.Api.Auth.Entities.ApplicationUser", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BookCatalog");
+
+                    b.Navigation("Condition");
+
+                    b.Navigation("Owner");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -576,6 +766,11 @@ namespace BookExchange.Api.Data.Migrations
                     b.Navigation("Profile");
 
                     b.Navigation("RefreshTokens");
+                });
+
+            modelBuilder.Entity("BookExchange.Api.Books.Entities.BookCatalog", b =>
+                {
+                    b.Navigation("Listings");
                 });
 #pragma warning restore 612, 618
         }

@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using BookExchange.Api.Users.Endpoints;
+using BookExchange.Api.Books.Services;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
 using Azure.Identity;
 
@@ -124,7 +125,8 @@ builder.Services.AddCors(options =>
 
 // Register services
 builder.Services.AddScoped<IJwtService, JwtService>();
-builder.Services.AddScoped<IEmailService, EmailService>(); 
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddHttpClient<IGoogleBooksService, GoogleBooksService>();
 
 
 var app = builder.Build();

@@ -16,6 +16,9 @@ public class BookExchangeContext : IdentityDbContext<ApplicationUser>
     public DbSet<Book> Books => Set<Book>();
     public DbSet<Genre> Genres => Set<Genre>();
     public DbSet<Condition> Condition => Set<Condition>();
+    public DbSet<BookCatalog> BookCatalogs => Set<BookCatalog>();
+    public DbSet<Author> Authors => Set<Author>();
+    public DbSet<Listing> Listings => Set<Listing>();
 
     // Auth DbSets
     public DbSet<RefreshToken> RefreshToken => Set<RefreshToken>();
@@ -45,6 +48,21 @@ public class BookExchangeContext : IdentityDbContext<ApplicationUser>
             new { Id = 4, Name = "Fair" },
             new { Id = 5, Name = "Worn" }
         );
+
+        modelBuilder.Entity<BookCatalog>()
+            .HasMany(b => b.Authors)
+            .WithMany(a => a.Books)
+            .UsingEntity(j => j.ToTable("BookCatalogAuthors"));
+
+        modelBuilder.Entity<BookCatalog>()
+            .HasMany(b => b.Genres)
+            .WithMany(g => g.Books)
+            .UsingEntity(j => j.ToTable("BookCatalogGenres"));
+
+        modelBuilder.Entity<BookCatalog>()
+            .HasIndex(b => b.GoogleBooksId)
+            .IsUnique()
+            .HasFilter("[GoogleBooksId] IS NOT NULL");
 
         // Configure UserProfile
         modelBuilder.Entity<UserProfile>(entity =>
