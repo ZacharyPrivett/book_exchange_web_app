@@ -240,48 +240,6 @@ namespace BookExchange.Api.Data.Migrations
                     b.ToTable("Authors");
                 });
 
-            modelBuilder.Entity("BookExchange.Api.Books.Entities.Book", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Author")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("ConditionId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("GenreId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ISBN")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Length")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ConditionId");
-
-                    b.HasIndex("GenreId");
-
-                    b.ToTable("Books");
-                });
-
             modelBuilder.Entity("BookExchange.Api.Books.Entities.BookCatalog", b =>
                 {
                     b.Property<int>("Id")
@@ -386,33 +344,6 @@ namespace BookExchange.Api.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Genres");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Name = "Fantasy"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Name = "Science Fiction"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Name = "Romance"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Name = "History"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            Name = "Military Thriller"
-                        });
                 });
 
             modelBuilder.Entity("BookExchange.Api.Books.Entities.Listing", b =>
@@ -662,25 +593,6 @@ namespace BookExchange.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("BookExchange.Api.Books.Entities.Book", b =>
-                {
-                    b.HasOne("BookExchange.Api.Books.Entities.Condition", "Condition")
-                        .WithMany()
-                        .HasForeignKey("ConditionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("BookExchange.Api.Books.Entities.Genre", "Genre")
-                        .WithMany()
-                        .HasForeignKey("GenreId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Condition");
-
-                    b.Navigation("Genre");
                 });
 
             modelBuilder.Entity("BookExchange.Api.Books.Entities.Listing", b =>

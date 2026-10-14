@@ -13,7 +13,7 @@ public class BookExchangeContext : IdentityDbContext<ApplicationUser>
         : base(options) {}
 
     // Book DbSets
-    public DbSet<Book> Books => Set<Book>();
+    //public DbSet<Book> Books => Set<Book>();
     public DbSet<Genre> Genres => Set<Genre>();
     public DbSet<Condition> Condition => Set<Condition>();
     public DbSet<BookCatalog> BookCatalogs => Set<BookCatalog>();
@@ -29,16 +29,6 @@ public class BookExchangeContext : IdentityDbContext<ApplicationUser>
     {   
         // Configure Identity tables
         base.OnModelCreating(modelBuilder);
-
-        // Genre seed data
-        // ToDo: Update once book api is added
-        modelBuilder.Entity<Genre>().HasData(
-            new { Id = 1, Name = "Fantasy" },
-            new { Id = 2, Name = "Science Fiction" },
-            new { Id = 3, Name = "Romance" },
-            new { Id = 4, Name = "History" },
-            new { Id = 5, Name = "Military Thriller" }
-        );
 
         // Book condition seed data
         modelBuilder.Entity<Condition>().HasData(

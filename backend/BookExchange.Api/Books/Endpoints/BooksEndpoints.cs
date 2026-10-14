@@ -50,6 +50,16 @@ public static class BooksEndpoints
                 .Select(l => l.ToSummaryDto())
                 .ToListAsync());
 
+        // GET /books/mine -> list the current user's active listings
+        group.MapGet("/mine", async (BookExchangeContext dbContext, ClaimsPrincipal user) =>
+            await dbContext.Listings
+                .Include(l => l.BookCatalog).ThenInclude(b => b!.Authors)
+                .Include(l => l.Condition)
+                .Where(l => l.OwnerId == user.GetUserId() && l.Status == ListingStatus.Available)
+                .Select(l => l.ToSummaryDto())
+                .ToListAsync())
+            .RequireAuthorization();
+
         // GET /books/1 -> one listing's full details
         group.MapGet("/{id}", async (int id, BookExchangeContext dbContext) =>
         {
