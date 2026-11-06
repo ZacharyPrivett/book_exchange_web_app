@@ -20,3 +20,15 @@ SELECT u.Id AS UserId, u.UserName, l.Id AS ListingId, l.Status, b.Title, b.ISBN1
 FROM AspNetUsers u
 JOIN Listings l ON u.Id = l.OwnerId
 JOIN BookCatalogs b ON l.BookCatalogId = b.Id;
+
+SELECT * FROM Genres;
+
+SELECT
+    bc.Id,
+    bc.Title,
+    STRING_AGG(g.Name, ', ') WITHIN GROUP (ORDER BY g.Name) AS Genres
+FROM BookCatalogs bc
+LEFT JOIN BookCatalogGenres bcg ON bcg.BooksId = bc.Id
+LEFT JOIN Genres g ON g.Id = bcg.GenresId
+GROUP BY bc.Id, bc.Title
+ORDER BY bc.Title;
