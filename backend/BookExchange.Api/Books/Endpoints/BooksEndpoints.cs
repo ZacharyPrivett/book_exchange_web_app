@@ -227,7 +227,8 @@ public static class BooksEndpoints
             return Results.CreatedAtRoute(GetBookEndpointName, new { id = listing.Id }, listing.ToDetailsDto());
         });
 
-        group.MapPut
+        
+        //group.MapPut
 
         return group;
     }

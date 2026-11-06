@@ -1,6 +1,6 @@
-using System;
+using BookExchange.Api.Auth.Entities;
 
-namespace BookExchange.Api.Auth.Entities;
+namespace BookExchange.Api.Users.Entities;
 
 public class UserProfile
 {
