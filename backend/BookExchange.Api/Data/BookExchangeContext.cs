@@ -1,6 +1,6 @@
-using System;
 using BookExchange.Api.Auth.Entities;
 using BookExchange.Api.Books.Entities;
+using BookExchange.Api.Users.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -13,9 +13,12 @@ public class BookExchangeContext : IdentityDbContext<ApplicationUser>
         : base(options) {}
 
     // Book DbSets
-    public DbSet<Book> Books => Set<Book>();
+    //public DbSet<Book> Books => Set<Book>();
     public DbSet<Genre> Genres => Set<Genre>();
     public DbSet<Condition> Condition => Set<Condition>();
+    public DbSet<BookCatalog> BookCatalogs => Set<BookCatalog>();
+    public DbSet<Author> Authors => Set<Author>();
+    public DbSet<Listing> Listings => Set<Listing>();
 
     // Auth DbSets
     public DbSet<RefreshToken> RefreshToken => Set<RefreshToken>();
@@ -27,16 +30,6 @@ public class BookExchangeContext : IdentityDbContext<ApplicationUser>
         // Configure Identity tables
         base.OnModelCreating(modelBuilder);
 
-        // Genre seed data
-        // ToDo: Update once book api is added
-        modelBuilder.Entity<Genre>().HasData(
-            new { Id = 1, Name = "Fantasy" },
-            new { Id = 2, Name = "Science Fiction" },
-            new { Id = 3, Name = "Romance" },
-            new { Id = 4, Name = "History" },
-            new { Id = 5, Name = "Military Thriller" }
-        );
-
         // Book condition seed data
         modelBuilder.Entity<Condition>().HasData(
             new { Id = 1, Name = "New" },
@@ -45,6 +38,21 @@ public class BookExchangeContext : IdentityDbContext<ApplicationUser>
             new { Id = 4, Name = "Fair" },
             new { Id = 5, Name = "Worn" }
         );
+
+        modelBuilder.Entity<BookCatalog>()
+            .HasMany(b => b.Authors)
+            .WithMany(a => a.Books)
+            .UsingEntity(j => j.ToTable("BookCatalogAuthors"));
+
+        modelBuilder.Entity<BookCatalog>()
+            .HasMany(b => b.Genres)
+            .WithMany(g => g.Books)
+            .UsingEntity(j => j.ToTable("BookCatalogGenres"));
+
+        modelBuilder.Entity<BookCatalog>()
+            .HasIndex(b => b.GoogleBooksId)
+            .IsUnique()
+            .HasFilter("[GoogleBooksId] IS NOT NULL");
 
         // Configure UserProfile
         modelBuilder.Entity<UserProfile>(entity =>

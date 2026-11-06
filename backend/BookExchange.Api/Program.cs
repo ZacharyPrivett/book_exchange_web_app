@@ -9,10 +9,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using BookExchange.Api.Users.Endpoints;
+using BookExchange.Api.Books.Services;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
 using Azure.Identity;
-
-
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,6 +50,19 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<BookExchangeContext>()
 .AddDefaultTokenProviders();
 
+// Configure ALL Identity cookie schemes for cross-site scenarios
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.SameSite = SameSiteMode.None;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+});
+
+builder.Services.ConfigureExternalCookie(options =>
+{
+    options.Cookie.SameSite = SameSiteMode.None;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+});
+
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured");
@@ -59,6 +71,7 @@ builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
 })
 .AddJwtBearer(options =>
 {
@@ -78,11 +91,19 @@ builder.Services.AddAuthentication(options =>
 {
     options.ClientId = builder.Configuration["Authentication:Google:Id"] ?? "";
     options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? "";
+    options.SignInScheme = IdentityConstants.ExternalScheme;
+    options.SaveTokens = true;
+    options.CorrelationCookie.SameSite = SameSiteMode.None;
+    options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
 })
 .AddMicrosoftAccount(options =>
 {
     options.ClientId = builder.Configuration["Authentication:Microsoft:ClientId"] ?? "";
     options.ClientSecret = builder.Configuration["Authentication:Microsoft:ClientSecret"] ?? "";
+    options.SignInScheme = IdentityConstants.ExternalScheme;
+    options.SaveTokens = true;
+    options.CorrelationCookie.SameSite = SameSiteMode.None;
+    options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
 });
 
 // Authorizaton
@@ -99,7 +120,7 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins("https://localhost:5173")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -108,10 +129,18 @@ builder.Services.AddCors(options =>
 
 // Register services
 builder.Services.AddScoped<IJwtService, JwtService>();
-builder.Services.AddScoped<IEmailService, EmailService>(); 
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddHttpClient<IGoogleBooksService, GoogleBooksService>();
 
 
 var app = builder.Build();
+
+// Enable request logging for debugging
+app.Use(async (context, next) =>
+{
+    Console.WriteLine($"Request: {context.Request.Method} {context.Request.Path}{context.Request.QueryString}");
+    await next();
+});
 
 // Middleware (CORS must come before Authentication/Authorization)
 app.UseCors();
