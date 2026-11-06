@@ -100,6 +100,10 @@ builder.Services.AddAuthentication(options =>
 {
     options.ClientId = builder.Configuration["Authentication:Microsoft:ClientId"] ?? "";
     options.ClientSecret = builder.Configuration["Authentication:Microsoft:ClientSecret"] ?? "";
+    options.SignInScheme = IdentityConstants.ExternalScheme;
+    options.SaveTokens = true;
+    options.CorrelationCookie.SameSite = SameSiteMode.None;
+    options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
 });
 
 // Authorizaton

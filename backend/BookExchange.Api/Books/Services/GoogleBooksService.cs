@@ -8,15 +8,19 @@ public class GoogleBooksService : IGoogleBooksService
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
 
-    public GoogleBooksService(HttpClient httpClient, IConfiguration configuration)
+    private readonly ILogger<GoogleBooksService> _logger;
+
+    public GoogleBooksService(HttpClient httpClient, IConfiguration configuration, ILogger<GoogleBooksService> logger)
     {
         _httpClient = httpClient;
         _configuration = configuration;
+        _logger = logger;
     }
 
     public async Task<IReadOnlyList<BookSearchResultDto>> SearchAsync(string query, int maxResults = 10)
     {
-        var url = BuildUrl($"intitle:{Uri.EscapeDataString(query)}", maxResults);
+        // Unprefixed query searches title, author, ISBN and description together.
+        var url = BuildUrl(Uri.EscapeDataString(query), maxResults);
         return await FetchVolumeAsync(url);
     }
 
@@ -57,6 +61,7 @@ public class GoogleBooksService : IGoogleBooksService
         var response = await _httpClient.GetAsync(url);
         if (!response.IsSuccessStatusCode)
         {
+            _logger.LogWarning("Google Books request failed with status {StatusCode}", (int)response.StatusCode);
             return [];
         }
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());

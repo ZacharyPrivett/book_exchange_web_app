@@ -2,6 +2,7 @@ using System.Security.Claims;
 using BookExchange.Api.Auth.Dtos;
 using BookExchange.Api.Auth.Entities;
 using BookExchange.Api.Auth.Services;
+using BookExchange.Api.Users.Entities;
 using BookExchange.Api.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;

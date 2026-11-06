@@ -33,12 +33,29 @@ public static class BooksEndpoints
                 .Select(b => b.ToSearchResultDto())
                 .ToListAsync();
 
-            if (localMatches.Count > 0)
+            IReadOnlyList<BookSearchResultDto> googleMatches;
+            try
             {
-                return Results.Ok(localMatches);
+                googleMatches = await googleBooks.SearchAsync(q);
+            }
+            catch (HttpRequestException)
+            {
+                googleMatches = [];
             }
 
-            return Results.Ok(await googleBooks.SearchAsync(q));
+            // Local entries win; drop Google volumes already cached locally.
+            var knownGoogleIds = localMatches.Where(l => l.GoogleBooksId is not null).Select(l => l.GoogleBooksId!).ToHashSet();
+            var knownIsbns = localMatches
+                .SelectMany(l => new[] { l.Isbn10, l.Isbn13 })
+                .Where(i => !string.IsNullOrEmpty(i))
+                .ToHashSet();
+
+            var merged = localMatches.Concat(googleMatches.Where(g =>
+                !knownGoogleIds.Contains(g.GoogleBooksId!) &&
+                !(g.Isbn10 is not null && knownIsbns.Contains(g.Isbn10)) &&
+                !(g.Isbn13 is not null && knownIsbns.Contains(g.Isbn13))));
+
+            return Results.Ok(merged.ToList());
         });
 
         // GET /books  -> list all active listings
@@ -49,6 +66,16 @@ public static class BooksEndpoints
                 .Where(l => l.Status == ListingStatus.Available)
                 .Select(l => l.ToSummaryDto())
                 .ToListAsync());
+
+        // GET /books/mine -> list the current user's active listings
+        group.MapGet("/mine", async (BookExchangeContext dbContext, ClaimsPrincipal user) =>
+            await dbContext.Listings
+                .Include(l => l.BookCatalog).ThenInclude(b => b!.Authors)
+                .Include(l => l.Condition)
+                .Where(l => l.OwnerId == user.GetUserId() && l.Status == ListingStatus.Available)
+                .Select(l => l.ToSummaryDto())
+                .ToListAsync())
+            .RequireAuthorization();
 
         // GET /books/1 -> one listing's full details
         group.MapGet("/{id}", async (int id, BookExchangeContext dbContext) =>
@@ -199,6 +226,9 @@ public static class BooksEndpoints
             await LoadDetailsNavigationsAsync(listing, dbContext);
             return Results.CreatedAtRoute(GetBookEndpointName, new { id = listing.Id }, listing.ToDetailsDto());
         });
+
+        
+        //group.MapPut
 
         return group;
     }

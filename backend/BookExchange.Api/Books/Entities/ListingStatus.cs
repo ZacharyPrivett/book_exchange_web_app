@@ -7,5 +7,6 @@ public enum ListingStatus
     Pending = 1,
     Exchanged = 2,
     Removed = 3,
-    Returned = 4
+    Returned = 4,
+    Private = 5
 }

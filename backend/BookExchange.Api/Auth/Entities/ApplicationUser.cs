@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using BookExchange.Api.Users.Entities;
 using Microsoft.Identity.Client;
 
 namespace BookExchange.Api.Auth.Entities;
