@@ -78,7 +78,7 @@ public static class BooksEndpoints
             .RequireAuthorization();
 
         // GET /books/1 -> one listing's full details
-        group.MapGet("/{id}", async (int id, BookExchangeContext dbContext) =>
+        group.MapGet("/{id}", async (int id, BookExchangeContext dbContext, ClaimsPrincipal user) =>
         {
             var listing = await dbContext.Listings
                 .Include(l => l.BookCatalog).ThenInclude(b => b!.Authors)
@@ -87,7 +87,9 @@ public static class BooksEndpoints
                 .Include(l => l.Owner).ThenInclude(o => o!.Profile)
                 .FirstOrDefaultAsync(l => l.Id == id);
 
-            return listing is null ? Results.NotFound() : Results.Ok(listing.ToDetailsDto());
+            // Anonymous requests are allowed here, so the owner ID must be resolved without
+            // throwing — IsOwner simply comes back false when there's no logged-in user.
+            return listing is null ? Results.NotFound() : Results.Ok(listing.ToDetailsDto(user.GetUserIdOrDefault()));
         })
         .WithName(GetBookEndpointName);
 
@@ -151,7 +153,7 @@ public static class BooksEndpoints
             await dbContext.SaveChangesAsync();
 
             await LoadDetailsNavigationsAsync(listing, dbContext);
-            return Results.CreatedAtRoute(GetBookEndpointName, new { id = listing.Id }, listing.ToDetailsDto());
+            return Results.CreatedAtRoute(GetBookEndpointName, new { id = listing.Id }, listing.ToDetailsDto(listing.OwnerId));
         });
 
         // POST /books/manual  -> last-resort creation after a search came back empty; re-verifies
@@ -224,11 +226,69 @@ public static class BooksEndpoints
             await dbContext.SaveChangesAsync();
 
             await LoadDetailsNavigationsAsync(listing, dbContext);
-            return Results.CreatedAtRoute(GetBookEndpointName, new { id = listing.Id }, listing.ToDetailsDto());
+            return Results.CreatedAtRoute(GetBookEndpointName, new { id = listing.Id }, listing.ToDetailsDto(listing.OwnerId));
         });
 
-        
-        //group.MapPut
+        // PATCH /books/5 -> owner-only partial update of Notes, Status (e.g. marking a listing
+        // unavailable), and Condition. PATCH (not PUT) because UpdateListingDto's fields are all
+        // optional and null means "leave unchanged" rather than "reset" — a partial-modification
+        // contract, not a full-resource-replacement one. Mirrors the IsOwner flag from
+        // GET /books/{id}: only the listing's owner may call this, everyone else gets 403.
+        group.MapPatch("/{id}", async (
+            int id,
+            UpdateListingDto dto,
+            ClaimsPrincipal user,
+            BookExchangeContext dbContext) =>
+        {
+            var listing = await dbContext.Listings
+                .Include(l => l.BookCatalog).ThenInclude(b => b!.Authors)
+                .Include(l => l.BookCatalog).ThenInclude(b => b!.Genres)
+                .Include(l => l.Condition)
+                .Include(l => l.Owner).ThenInclude(o => o!.Profile)
+                .FirstOrDefaultAsync(l => l.Id == id);
+
+            if (listing is null)
+            {
+                return Results.NotFound();
+            }
+
+            if (listing.OwnerId != user.GetUserId())
+            {
+                return Results.Forbid();
+            }
+
+            if (dto.ConditionId is not null)
+            {
+                // Assigning the navigation directly (rather than just ConditionId) so the
+                // already-loaded Condition reference reflects the change for ToDetailsDto() below —
+                // EF won't re-run Reference().LoadAsync() once a navigation is marked loaded.
+                var condition = await dbContext.Condition.FindAsync(dto.ConditionId.Value);
+                if (condition is null)
+                {
+                    return Results.BadRequest("Condition not found.");
+                }
+
+                listing.Condition = condition;
+                listing.ConditionId = condition.Id;
+            }
+
+            if (dto.Status is not null)
+            {
+                listing.Status = dto.Status.Value;
+            }
+
+            if (dto.Notes is not null)
+            {
+                listing.Notes = dto.Notes;
+            }
+
+            listing.UpdatedAt = DateTime.UtcNow;
+
+            await dbContext.SaveChangesAsync();
+
+            return Results.Ok(listing.ToDetailsDto(listing.OwnerId));
+        })
+        .RequireAuthorization();
 
         return group;
     }

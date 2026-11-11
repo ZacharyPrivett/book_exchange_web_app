@@ -14,7 +14,9 @@ public static class ListingMapping
             listing.Condition!.Name,
             listing.Status.ToString());
 
-    public static ListingDetailsDto ToDetailsDto(this Listing listing) =>
+    // currentUserId is the caller's user ID (null for anonymous requests), used to compute
+    // IsOwner so the frontend knows whether to show owner-only actions (edit notes, delist, etc.).
+    public static ListingDetailsDto ToDetailsDto(this Listing listing, string? currentUserId = null) =>
         new(
             listing.Id,
             listing.BookCatalog!.Title,
@@ -29,5 +31,6 @@ public static class ListingMapping
             listing.Status.ToString(),
             listing.Notes,
             listing.Owner?.Profile?.DisplayName ?? listing.Owner?.UserName ?? "Unknown",
-            listing.CreatedAt);
+            listing.CreatedAt,
+            currentUserId is not null && currentUserId == listing.OwnerId);
 }

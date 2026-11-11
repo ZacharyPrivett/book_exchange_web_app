@@ -228,6 +228,7 @@ public static class AuthEndpoints
         var principal = jwtService.GetPrincipalFromExpiredToken(dto.AccessToken);
         if (principal == null)
         {
+            //Console.WriteLine("Invalid access token");
             return Results.BadRequest(new {message = "Invalid access token" });
         }
 
