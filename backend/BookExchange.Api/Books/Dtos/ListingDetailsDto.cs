@@ -14,5 +14,6 @@ public record class ListingDetailsDto(
     string Status,
     string? Notes,
     string OwnerDisplayName,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    bool IsOwner
 );
